@@ -1,0 +1,72 @@
+export const dummyArray = () => [
+  {
+    name: 'Chogyal',
+    age: '29',
+    homeTown: 'Moshi',
+    service: 'Donation',
+    status: 'Active',
+    date: '02/23/2024',
+    imgSrc: require('../images/donate2.png'),
+  },
+  {
+    name: 'Tashi',
+    age: '28',
+    homeTown: 'Ngyami',
+    service: 'Physical service',
+    status: 'Active',
+    date: '02/23/2024',
+    imgSrc: require('../images/service.png'),
+  },
+  {
+    name: 'Chogyal',
+    age: '29',
+    homeTown: 'Moshi',
+    service: 'Tution',
+    status: 'Active',
+    date: '02/23/2024',
+    imgSrc: require('../images/tution.png'),
+  },
+  {
+    name: 'Tashi',
+    age: '28',
+    homeTown: 'Ngyami',
+    service: 'Online consultation',
+    status: 'Active',
+    date: '02/23/2024',
+    imgSrc: require('../images/online.png'),
+  },
+
+  {
+    name: 'Wasp',
+    age: '30',
+    homeTown: 'Paro',
+    service: 'Donation',
+    status: 'Active',
+    date: '02/23/2024',
+    imgSrc: require('../images/donate2.png'),
+  },
+  {
+    name: 'Marc',
+    age: '37',
+    homeTown: 'California',
+    service: 'Donation',
+    status: 'Active',
+    date: '02/23/2024',
+    imgSrc: require('../images/service.png'),
+  },
+  {
+    name: 'Rahul',
+    age: '38',
+    homeTown: 'Chadigarh',
+    service: 'Donation',
+    status: 'Active',
+    date: '02/23/2024',
+    imgSrc: require('../images/online.png'),
+  },
+];
+
+// export const dummyArray = () => [
+//   {name: 'Alice', age: 25, homeTown: 'New York'},
+//   {name: 'Bob', age: 30, homeTown: 'Chicago'},
+//   {name: 'Charlie', age: 35, homeTown: 'Los Angeles'},
+// ];
