@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Pressable,
 } from 'react-native';
 
 import React, {useContext, useState} from 'react';
@@ -23,8 +24,9 @@ export default function Login({navigation}) {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
 
-  const [error, setError] = useState({email: '', password: ''});
+  const [error, setError] = useState({email: '', password: '', phone: ''});
 
   const validateForm = () => {
     let isValid = true;
@@ -32,13 +34,19 @@ export default function Login({navigation}) {
     const newErrors = {
       email: '',
       password: '',
+      phone: '',
     };
 
-    if (!email.trim()) {
-      newErrors.email = 'Email is required.';
-      isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Invalid email format.';
+    // if (!email.trim()) {
+    //   newErrors.email = 'Email is required.';
+    //   isValid = false;
+    // } else if (!/\S+@\S+\.\S+/.test(email)) {
+    //   newErrors.email = 'Invalid email format.';
+    //   isValid = false;
+    // }
+
+    if (!phone.trim()) {
+      newErrors.phone = 'Phone number is required.';
       isValid = false;
     }
 
@@ -56,7 +64,7 @@ export default function Login({navigation}) {
       return;
     }
 
-    const loginData = {email, password};
+    const loginData = {email, password, phone};
     try {
       const response = await axios.post(
         `${API_BASE_URL}auth/login`,
@@ -99,13 +107,10 @@ export default function Login({navigation}) {
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}>
-      <Text style={styles.title}>Welcome!</Text>
+      <Text style={styles.signup}>Sign In</Text>
       <Text style={styles.subtitle}>Login to continue</Text>
 
-      <View style={styles.errorInputStyle}>
-        {error.email ? (
-          <Text style={styles.errorText}>{error.email}</Text>
-        ) : null}
+      {/* <View style={styles.errorInputStyle}>
         <CustomInput
           placeholder="Email"
           icon="email"
@@ -113,12 +118,25 @@ export default function Login({navigation}) {
           onChangeText={setEmail}
           keyboardType="email-address"
         />
+        {error.email ? (
+          <Text style={styles.errorText}>{error.email}</Text>
+        ) : null}
+      </View> */}
+
+      <View style={styles.errorInputStyle}>
+        <CustomInput
+          placeholder="Phone"
+          icon="phone"
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="number-pad"
+        />
+        {error.phone ? (
+          <Text style={styles.errorText}>{error.phone}</Text>
+        ) : null}
       </View>
 
       <View style={styles.errorInputStyle}>
-        {error.password ? (
-          <Text style={styles.errorText}>{error.password}</Text>
-        ) : null}
         <CustomInput
           placeholder="Password"
           icon="lock"
@@ -126,15 +144,21 @@ export default function Login({navigation}) {
           onChangeText={setPassword}
           secureTextEntry
         />
+        {error.password ? (
+          <Text style={styles.errorText}>{error.password}</Text>
+        ) : null}
       </View>
 
-      <CustomButton title="Login" onPress={handleLogin} />
+      <Pressable style={styles.register} onPress={handleLogin}>
+        <Text style={{color: '#fff'}}>Sign In</Text>
+      </Pressable>
 
-      <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-        <Text style={styles.footerText}>
-          Don't have an account? <Text style={styles.footerLink}>Sign Up</Text>
-        </Text>
-      </TouchableOpacity>
+      <View style={{flexDirection: 'row', marginTop: 5}}>
+        <Text>Don't have an account? </Text>
+        <Pressable onPress={() => navigation.navigate('Signup')}>
+          <Text style={{color: '#00b8e6', fontWeight: 400}}>Register</Text>
+        </Pressable>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -159,9 +183,23 @@ const styles = StyleSheet.create({
     color: '#000',
     marginBottom: 10,
   },
+  register: {
+    backgroundColor: '#00b8e6',
+    alignItems: 'center',
+    width: '40%',
+    paddingVertical: 10,
+    borderRadius: 50,
+    marginTop: 30,
+  },
+  signup: {
+    fontSize: 40,
+    fontWeight: '900',
+    color: '#00b8e6',
+    fontStyle: '',
+  },
   subtitle: {
-    fontSize: 16,
-    color: '#000',
+    fontSize: 14,
+    color: '#666666',
     marginBottom: 30,
   },
   footerText: {

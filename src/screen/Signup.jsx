@@ -1,59 +1,49 @@
-import React, {useEffect, useState} from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ImageBackground,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  Modal,
   Alert,
+  Image,
+  ImageBackground,
+  KeyboardAvoidingView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
+import React, {useState} from 'react';
+import {Pressable, ScrollView, TextInput} from 'react-native-gesture-handler';
+import CheckBox from '@react-native-community/checkbox';
+import {
+  GoogleSocialButton,
+  FacebookSocialButton,
+} from 'react-native-social-buttons';
 import CustomInput from '../custom/CustomInput';
-import CustomButton from '../custom/CustomButton';
-import axios from 'axios';
-import API_BASE_URL from '../config.jsx';
-import {ScrollView} from 'react-native-gesture-handler';
-import Toast from 'react-native-toast-message';
 
-const SignupScreen = ({navigation}) => {
+export default function Signup({navigation}) {
+  const [userName, setUserName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
-  const [showModal, setShowModal] = useState(false);
 
   const [errors, setErrors] = useState({
-    firstName: '',
-    lastName: '',
+    userName: '',
     email: '',
     password: '',
     confirmPassword: '',
     phone: '',
   });
 
+  // Validation
+
   const validateForm = () => {
     let isValid = true;
     const newErrors = {
-      firstName: '',
-      lastName: '',
+      userName: '',
       email: '',
       password: '',
       confirmPassword: '',
       phone: '',
     };
-
-    if (!firstName.trim()) {
-      newErrors.firstName = 'First Name is required!';
-      isValid = false;
-    }
-
-    if (!lastName.trim()) {
-      newErrors.lastName = 'Last Name is required!';
+    if (!userName.trim()) {
+      newErrors.userName = 'Username is required.';
       isValid = false;
     }
 
@@ -82,10 +72,9 @@ const SignupScreen = ({navigation}) => {
     }
 
     if (!phone.trim()) {
-      newErrors.phone = 'Phone Number is required.';
-      isValid = false;
-    } else if (!/^\d{10}$/.test(phone)) {
-      newErrors.phone = 'Invalid phone number (must be 10 digits).';
+      newErrors.phone = 'Phone number is requried.';
+    } else if (!/^\d{8}$/.test(phone)) {
+      newErrors.phone = 'Invalid phone number (must be 8 digits).';
       isValid = false;
     }
 
@@ -94,11 +83,13 @@ const SignupScreen = ({navigation}) => {
   };
 
   const handleUserRegister = async () => {
+    console.log('Inside signup action');
     if (!validateForm()) {
       return;
     }
 
-    const userData = {firstName, lastName, email, phone, password};
+    console.log('After validation');
+    const userData = {userName, email, phone, password};
     try {
       const response = await axios.post(
         `${API_BASE_URL}api/registration`,
@@ -116,143 +107,178 @@ const SignupScreen = ({navigation}) => {
     }
   };
 
+  const handleGoogleLogin = () => {
+    Alert.alert('This feature is not available currently!');
+  };
+  const handleFacebookLogin = () => {
+    Alert.alert('This feature is not available currently!');
+  };
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContainer}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Create Account</Text>
-        <Text style={styles.subtitle}>Sign up to get started</Text>
-
-        <View style={styles.errorInputStyle}>
-          {errors.firstName ? (
-            <Text style={styles.errorText}>{errors.firstName}</Text>
-          ) : null}
-          <CustomInput
-            placeholder=" First name "
-            icon="person"
-            value={firstName}
-            onChangeText={setFirstName}
-          />
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.signup}>Sign Up</Text>
         </View>
-        <View style={styles.errorInputStyle}>
-          {errors.lastName ? (
-            <Text style={styles.errorText}>{errors.lastName}</Text>
-          ) : null}
-          <CustomInput
-            placeholder=" Last name "
-            icon="person"
-            value={lastName}
-            onChangeText={setLastName}
-          />
-        </View>
-        <View style={styles.errorInputStyle}>
-          {errors.password ? (
-            <Text style={styles.errorText}>{errors.password}</Text>
-          ) : null}
-          <CustomInput
-            placeholder="Password"
-            icon="lock"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-        </View>
+        <ScrollView>
+          <View style={styles.content}>
+            <View style={styles.errorInputStyle}>
+              <CustomInput
+                placeholder="Username"
+                icon="person"
+                value={userName}
+                onChangeText={setUserName}
+              />
+              {errors.userName ? (
+                <Text style={styles.errorText}>{errors.userName}</Text>
+              ) : null}
+            </View>
+            <View style={styles.errorInputStyle}>
+              <CustomInput
+                placeholder="Email"
+                icon="email"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+              />
+              {errors.email ? (
+                <Text style={styles.errorText}>{errors.email}</Text>
+              ) : null}
+            </View>
+            <View style={styles.errorInputStyle}>
+              <CustomInput
+                placeholder="Phone number"
+                icon="phone"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+              />
+              {errors.phone ? (
+                <Text style={styles.errorText}>{errors.phone}</Text>
+              ) : null}
+            </View>
+            <View style={styles.errorInputStyle}>
+              <CustomInput
+                placeholder="Password"
+                icon="lock"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+              {errors.password ? (
+                <Text style={styles.errorText}>{errors.password}</Text>
+              ) : null}
+            </View>
+            <View style={styles.errorInputStyle}>
+              <CustomInput
+                placeholder="Confirm Password"
+                icon="lock"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+              />
+              {errors.confirmPassword ? (
+                <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+              ) : null}
+            </View>
 
-        <View style={styles.errorInputStyle}>
-          {errors.confirmPassword ? (
-            <Text style={styles.errorText}>{errors.confirmPassword}</Text>
-          ) : null}
-          <CustomInput
-            placeholder="Confirm Password"
-            icon="lock"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-          />
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                padding: 5,
+              }}>
+              <CheckBox />
+              <Text>Rememer Me</Text>
+            </View>
+            <View
+              style={{
+                width: '100%',
+                alignItems: 'center',
+                marginTop: 20,
+              }}>
+              <View>
+                <GoogleSocialButton onPress={handleGoogleLogin} />
+              </View>
+              <View>
+                <FacebookSocialButton onPress={handleFacebookLogin} />
+              </View>
+            </View>
+          </View>
+        </ScrollView>
+        <View style={styles.footer}>
+          <Pressable style={styles.register} onPress={handleUserRegister}>
+            <Text style={{color: '#fff'}}>Sign Up</Text>
+          </Pressable>
+          <View style={{flexDirection: 'row', marginTop: 5}}>
+            <Text>Already have an account? </Text>
+            <Pressable onPress={() => navigation.navigate('Login')}>
+              <Text style={{color: '#00b8e6', fontWeight: 400}}>Sign In</Text>
+            </Pressable>
+          </View>
         </View>
-
-        <View style={styles.errorInputStyle}>
-          {errors.email ? (
-            <Text style={styles.errorText}>{errors.email}</Text>
-          ) : null}
-          <CustomInput
-            placeholder="Email"
-            icon="email"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-          />
-        </View>
-
-        <View style={styles.errorInputStyle}>
-          {errors.phone ? (
-            <Text style={styles.errorText}>{errors.phone}</Text>
-          ) : null}
-          <CustomInput
-            placeholder="Phone number"
-            icon="phone"
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-          />
-        </View>
-
-        <CustomButton title="Sign Up" onPress={handleUserRegister} />
-
-        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-          <Text style={styles.footerText}>
-            Already have an account?{' '}
-            <Text style={styles.footerLink}>Login</Text>
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
+      </View>
     </KeyboardAvoidingView>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-    resizeMode: 'cover',
-  },
-  gradient: {
+  imageBg: {
     flex: 1,
   },
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 30,
-    width: '100%',
+    backgroundColor: '#fff',
+    height: '100%',
   },
-  scrollContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  header: {
+    height: '20%',
     alignItems: 'center',
-    width: '100%',
+    justifyContent: 'center',
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#000',
+  content: {
+    height: '60%',
+    marginHorizontal: '10%',
+  },
+  inputWrapper: {
+    width: '100%',
     marginBottom: 10,
+    borderRadius: 40,
+    paddingHorizontal: 5,
+    // iOS Shadow Properties
+    // shadowColor: '#000',
+    // shadowOffset: {width: 0, height: 2},
+    // shadowOpacity: 0.8,
+    // shadowRadius: 4,
+    // Android Shadow Property
+    elevation: 5,
+    backgroundColor: '#fff',
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#000',
-    marginBottom: 30,
+  inputStyle: {},
+  footer: {
+    height: '20%',
+    paddingVertical: 20,
+    alignItems: 'center',
   },
-  footerText: {
-    color: '#000',
-    marginTop: 20,
+  loginOptions: {
+    alignItems: 'center',
+    backgroundColor: 'red',
+    marginVertical: 10,
   },
-  footerLink: {
-    color: '#3399ff',
-    fontWeight: 'bold',
+  signup: {
+    fontSize: 40,
+    fontWeight: '900',
+    color: '#00b8e6',
+    fontStyle: '',
+  },
+  register: {
+    backgroundColor: '#00b8e6',
+    alignItems: 'center',
+    width: '60%',
+    paddingVertical: 10,
+    borderRadius: 50,
+    marginVertical: 10,
   },
   errorText: {
     color: '#ff1a1a',
@@ -264,27 +290,4 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     width: '100%',
   },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  successText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  redirectText: {
-    fontSize: 14,
-    color: 'gray',
-  },
 });
-
-export default SignupScreen;

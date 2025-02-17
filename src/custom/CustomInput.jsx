@@ -1,10 +1,4 @@
-import {
-  StyleSheet,
-  Text,
-  View,
-  TextInput,
-  TouchableOpacity,
-} from 'react-native';
+import {StyleSheet, View, TextInput, TouchableOpacity} from 'react-native';
 import React from 'react';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import {useState} from 'react';
@@ -25,7 +19,7 @@ export default function CustomInput({
 
   return (
     <View style={styles.inputContainer}>
-      <Icon name={icon} size={20} color="#595959" style={styles.icon} />
+      <Icon name={icon} size={18} color="#595959" style={styles.icon} />
       <TextInput
         style={styles.input}
         placeholder={placeholder}
@@ -54,10 +48,9 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 0,
-    paddingHorizontal: 15,
+    paddingHorizontal: 10,
     borderBottomWidth: 0.5,
-    padding: 5,
+    padding: 0,
   },
   icon: {
     marginRight: 10,
@@ -66,8 +59,9 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 50,
     color: '#595959',
+    fontSize: 14,
   },
   eyeIcon: {
-    padding: 10,
+    padding: 0,
   },
 });
