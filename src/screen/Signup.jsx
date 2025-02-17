@@ -1,20 +1,23 @@
+import React, {useEffect, useState} from 'react';
 import {
-  Alert,
-  Image,
-  ImageBackground,
-  KeyboardAvoidingView,
-  StyleSheet,
-  Text,
   View,
+  Text,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  Modal,
+  Alert,
 } from 'react-native';
-import React, {useState} from 'react';
-import {Pressable, ScrollView, TextInput} from 'react-native-gesture-handler';
+import CustomInput from '../custom/CustomInput';
+import axios from 'axios';
+import API_BASE_URL from '../config.jsx';
+import {Pressable, ScrollView} from 'react-native-gesture-handler';
+import Toast from 'react-native-toast-message';
 import CheckBox from '@react-native-community/checkbox';
 import {
-  GoogleSocialButton,
   FacebookSocialButton,
+  GoogleSocialButton,
 } from 'react-native-social-buttons';
-import CustomInput from '../custom/CustomInput';
 
 export default function Signup({navigation}) {
   const [userName, setUserName] = useState('');
@@ -90,18 +93,20 @@ export default function Signup({navigation}) {
 
     console.log('After validation');
     const userData = {userName, email, phone, password};
+    console.log('before axions');
     try {
       const response = await axios.post(
         `${API_BASE_URL}api/registration`,
         userData,
-        Toast.show({
-          type: 'success',
-          text1: 'Registration Successful! 🎉',
-          position: 'top',
-          visibilityTime: 3000, // Auto-dismiss in 3s
-          onHide: () => navigation.navigate('Login'), // Redirect after hiding
-        }),
       );
+      Toast.show({
+        type: 'success',
+        text1: 'Registration Successful! 🎉',
+        position: 'top',
+        visibilityTime: 3000, // Auto-dismiss in 3s
+        onHide: () => navigation.navigate('Login'), // Redirect after hiding
+      }),
+        console.log('After axios');
     } catch (error) {
       Alert.alert(error);
     }
@@ -121,7 +126,9 @@ export default function Signup({navigation}) {
         <View style={styles.header}>
           <Text style={styles.signup}>Sign Up</Text>
         </View>
-        <ScrollView>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
             <View style={styles.errorInputStyle}>
               <CustomInput
