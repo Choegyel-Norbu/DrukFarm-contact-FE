@@ -10,6 +10,8 @@ import Service from '../screen/DcHScrn/Service';
 import ProfileScr from '../screen/DcHScrn/ProfileScr';
 import Offer from '../screen/DcHScrn/Offer';
 import Request from '../screen/DcHScrn/Request';
+import Product from '../screen/DrukFarm/Product';
+import ProductDetail from '../screen/DrukFarm/ProductDetail';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -24,6 +26,23 @@ const HomeStack = () => {
       />
       <Stack.Screen name="PRdetails" component={PRdetails} />
       <Stack.Screen name="HRlisting" component={HRlisingScr} />
+    </Stack.Navigator>
+  );
+};
+
+const ProductStack = () => {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen
+        name="Product"
+        component={Product}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="ProductDetail"
+        component={ProductDetail}
+        options={{headerShown: false}}
+      />
     </Stack.Navigator>
   );
 };
@@ -46,8 +65,8 @@ export default function TabNavigation() {
       />
 
       <Tab.Screen
-        name="Offer"
-        component={Offer}
+        name="Product"
+        component={ProductStack}
         options={{
           tabBarIcon: ({color}) => (
             <Icon name="local-offer" size={28} color={color} />

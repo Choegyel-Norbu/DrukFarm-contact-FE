@@ -128,7 +128,13 @@ export default function Signup({navigation}) {
         </View>
         <ScrollView
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}>
+          showsVerticalScrollIndicator={false}
+          style={{
+            borderWidth: 0.5,
+            margin: 3,
+            paddingVertical: 10,
+            height: 'auto',
+          }}>
           <View style={styles.content}>
             <View style={styles.errorInputStyle}>
               <CustomInput

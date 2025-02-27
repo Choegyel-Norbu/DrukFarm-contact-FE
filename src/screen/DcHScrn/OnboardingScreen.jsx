@@ -14,18 +14,18 @@ export default function OnboardingScreen({navigation}) {
   const [index, setIndex] = useState(0);
 
   const slides = [
-    {
-      id: 1,
-      image: require('../../images/donate.png'),
-      title: 'Welcome to Our App!',
-      description: 'Explore amazing features tailored for you.',
-    },
-    {
-      id: 2,
-      image: require('../../images/chats.png'),
-      title: 'Connect with People',
-      description: 'Find and interact with people who share your interests.',
-    },
+    // {
+    //   id: 1,
+    //   image: require('../../images/donate.png'),
+    //   title: 'Welcome to Our App!',
+    //   description: 'Explore amazing features tailored for you.',
+    // },
+    // {
+    //   id: 2,
+    //   image: require('../../images/chats.png'),
+    //   title: 'Connect with People',
+    //   description: 'Find and interact with people who share your interests.',
+    // },
     {
       id: 3,
       image: require('../../images/post.png'),
@@ -58,17 +58,11 @@ export default function OnboardingScreen({navigation}) {
 
         {/* Skip & Get Started Buttons */}
         <View style={styles.buttonContainer}>
-          {index < slides.length - 1 ? (
-            <TouchableOpacity onPress={() => navigation.replace('Auth')}>
-              <Text style={styles.skipText}>Skip</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.startButton}
-              onPress={() => navigation.replace('Login')}>
-              <Text style={styles.startText}>Get Started</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={styles.startButton}
+            onPress={() => navigation.replace('Login')}>
+            <Text style={styles.startText}>Get Started</Text>
+          </TouchableOpacity>
         </View>
       </LinearGradient>
     </>

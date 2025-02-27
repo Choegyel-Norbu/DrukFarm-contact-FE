@@ -2,31 +2,67 @@ import {
   Alert,
   Button,
   Image,
-  StatusBar,
+  Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import React, {useContext, useEffect, useState} from 'react';
+import React, {useCallback, useContext, useEffect, useState} from 'react';
 import {Pressable, ScrollView} from 'react-native-gesture-handler';
 import DropDownPicker from 'react-native-dropdown-picker';
 import {dummyArray} from '../../components/DummyArray';
 import {AuthContext} from '../../custom/AuthContext';
 import API_BASE_URL from '../../config';
 import axios from 'axios';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+
 import Toast from 'react-native-toast-message';
-import {Roles} from '../../constant/NavItem';
+import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {useFocusEffect} from '@react-navigation/native';
 
 export default function ProfileScr() {
   const [selectedValue, setSelectedValue] = useState([]);
-  const {email, firstName, lastName} = useContext(AuthContext);
-  const [userName, setUserName] = useState('');
-  const [retrivedServices, setRetrivedServices] = useState([]);
+  const {email, userName} = useContext(AuthContext);
+  const [modalVisibility, setModalVisibility] = useState(false);
+  const [selectedImage, setSelectedImage] = useState('');
+  const [userToken, setUserToken] = useState('');
+  const [dpImgName, setDpImgName] = useState('');
+  const [dpImgFileType, setDpImgFileType] = useState('');
+  const [dp, setDp] = useState('');
 
-  useEffect(() => {
-    setUserName(`${firstName} ${lastName}`);
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchToken();
+    }, []),
+  );
+
+  const getDP = useCallback(async token => {
+    const response = await axios.get(`${API_BASE_URL}api/getDP/${email}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    console.log('----------------------------------------------------');
+    const encoded = response.data.replace(/ /g, '%20');
+    setDp(encoded);
+  });
+
+  const fetchToken = async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (token) {
+        setUserToken(token);
+        getDP(token);
+        console.log('User Token @@@ =' + userToken);
+      } else {
+        console.log('Effor fetching token');
+      }
+    } catch (error) {
+      console.error('Error fetching token:', error);
+    }
+  };
 
   useEffect(() => {
     if (selectedValue && selectedValue.length > 0) {
@@ -72,7 +108,9 @@ export default function ProfileScr() {
       </View>
     );
   };
-
+  const handleImageModal = () => {
+    setModalVisibility(true);
+  };
   const handleServiceSubmit = async () => {
     const requestData = {
       email,
@@ -110,137 +148,313 @@ export default function ProfileScr() {
     }
   };
 
+  const pickImage = () => {
+    launchImageLibrary(
+      {
+        mediaType: 'photo',
+        quality: 1,
+      },
+      response => handleResponse(response),
+    );
+  };
+
+  const takePhoto = () => {
+    launchCamera({mediaType: 'photo', quality: 1}, response =>
+      handleResponse(response),
+    );
+  };
+
+  const handleResponse = response => {
+    let name = '';
+
+    if (response.didCancel) {
+      console.log('Cancelled image upload');
+    } else if (response.errorCode) {
+      console.log('Image picker error', response.errorCode);
+    } else {
+      const imageURI = response.assets[0].uri;
+      const {fileName, type} = response.assets[0];
+      setDpImgName(fileName);
+      setDpImgFileType(type);
+      setSelectedImage(imageURI);
+    }
+  };
+
+  const handleDismiss = () => {
+    setModalVisibility(false);
+    setSelectedImage('');
+  };
+
+  const uploadImage = async () => {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: selectedImage,
+      name: dpImgName,
+      type: dpImgFileType,
+    });
+
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}api/uploadDP/${email}`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${userToken}`,
+          },
+        },
+      );
+      setDp(response.data);
+      Toast.show({
+        type: 'success',
+        text1: ' Profile photo uploaded successfully',
+        position: 'top',
+        visibilityTime: 2000,
+      });
+      setModalVisibility(false);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const updateImage = async () => {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: selectedImage,
+      name: dpImgName,
+      type: dpImgFileType,
+    });
+
+    try {
+      const response = await axios.put(
+        `${API_BASE_URL}api/updateDP/${email}`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${userToken}`,
+          },
+        },
+      );
+      setDp(response.data);
+      Toast.show({
+        type: 'success',
+        text1: ' Profile photo updated successfully',
+        position: 'top',
+        visibilityTime: 2000,
+      });
+      setModalVisibility(false);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const handleProductList = () => {
+    return (
+      <View style={styles.listContainer}>
+        <View style={styles.listContent}></View>
+        <View style={[styles.listContent, styles.emptyCard]}></View>
+      </View>
+    );
+  };
+
   return (
     <ScrollView
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}>
       <View style={styles.profileHeader}>
         <View style={styles.profileImg}>
-          <Image
-            style={{height: 80, width: 80, borderRadius: 60}}
-            source={require('../../images/wasp.jpg')}
-          />
+          <Pressable onPress={handleImageModal}>
+            {dp ? (
+              <Image
+                style={{height: 80, width: 80, borderRadius: 60}}
+                source={{
+                  uri: dp,
+                }}
+              />
+            ) : (
+              <Icon name="person" size={60} color="#b3b3b3" />
+            )}
+          </Pressable>
         </View>
         <View style={styles.profileDetail}>
           <Text style={{fontWeight: '700', fontSize: 16}}>{userName}</Text>
           <Text style={{marginBottom: 10, fontSize: 12}}>{email}</Text>
-          <Button title="Edit profile" />
+          <Button title="Edit profile" onPress={getDP} />
         </View>
       </View>
 
-      {/* Add Service container */}
-
-      <View style={styles.serviceContainer}>
-        <Text style={styles.title}>Select Services You Provide</Text>
-        <View style={styles.dropDownMainContainer}>
-          <DropDownPicker
-            open={open}
-            value={services}
-            items={items}
-            multiple={true}
-            min={1}
-            max={3}
-            setOpen={setOpen}
-            setValue={setServices}
-            mode="BADGE"
-            disabled={buttonDisabled}
-            setItems={setItems}
-            onChangeValue={selected => setSelectedValue(selected)}
-            style={{
-              backgroundColor: '#fff',
-              borderColor: 'gray',
-              padding: 10,
-              margin: 'auto',
-            }}
-            textStyle={{fontSize: 16}}
-            placeholder="Select services"
-            placeholderStyle={{color: '#808080'}}
-            dropDownContainerStyle={{
-              backgroundColor: '#f2f2f2',
-              borderColor: '#737373',
-              margin: 'auto',
-            }}
-            listItemContainerStyle={{
-              borderBottomWidth: 0.5,
-              borderBottomColor: '#f2f2f2',
-              paddingVertical: 10,
-            }}
-            listItemLabelStyle={{fontSize: 16, color: '#333333'}}
-          />
-        </View>
-        <TouchableOpacity
-          onPress={handleServiceSubmit}
-          style={styles.serviceSubBtn}>
-          <Text style={{color: '#fff', fontSize: 16}}>Add service</Text>
-        </TouchableOpacity>
-        {/* {buttonDisabled ? (
-          <Pressable style={styles.serviceSubBtnDisabled}>
-            <Text style={{color: '#333333', fontSize: 16}}>Add service</Text>
-          </Pressable>
-        ) : (
-          <TouchableOpacity
-            onPress={handleServiceSubmit}
-            style={styles.serviceSubBtn}>
-            <Text style={{color: '#fff', fontSize: 16}}>Add service</Text>
-          </TouchableOpacity>
-        )} */}
-      </View>
-
-      {/* Service list */}
-      <View style={styles.serviceListContainer}>
-        <Text style={{fontSize: 16, fontWeight: '700', marginLeft: 10}}>
-          List of services you offered.
-        </Text>
-
-        {serviceOffers.map((item, index) => (
-          <View key={index} style={styles.serviceItem}>
-            <View>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-evenly',
-                  alignItems: 'center',
-                  marginVertical: 3,
-                }}>
+      <View style={styles.profileContent}>
+        <View style={styles.farmerContent}>
+          <Text>Products you have listed: </Text>
+          <View style={styles.listContainer}>
+            <View style={styles.listContent}>
+              <Icon
+                name="circle"
+                size={10}
+                color="green"
+                style={styles.circleStyle}
+              />
+              <View style={styles.cardContent}>
                 <Image
-                  source={item.imgSrc}
-                  style={{height: 30, width: 30, marginRight: 5}}
+                  style={{
+                    width: '80%',
+                    height: '100',
+                  }}
+                  source={{
+                    uri: 'https://media.gettyimages.com/id/1367696088/photo/fresh-sliced-mango-isolated-on-white-background.jpg?s=612x612&w=gi&k=20&c=ZLTaWVPiq7DNkFWZA79Ii8V9iBywc4_q6CKz1F0nEwA=',
+                  }}
                 />
-                <Text style={{fontSize: 14, fontWeight: '600'}}>
-                  {item.service}
-                </Text>
+                <Text style={styles.cardContentName}>Mango</Text>
+                <Text style={styles.cardContentPrice}>Nu. 30 /unit</Text>
+                <TouchableOpacity>
+                  <Text
+                    style={{
+                      color: '#fff',
+                      backgroundColor: '#3385ff',
+                      paddingHorizontal: 20,
+                      marginVertical: 10,
+                    }}>
+                    Edit
+                  </Text>
+                </TouchableOpacity>
               </View>
-
-              <Text style={{fontSize: 10}}>{item.date}</Text>
             </View>
-            {isActive ? (
-              <Text
-                style={{
-                  backgroundColor: '#00b33c',
-                  color: '#fff',
-                  alignSelf: 'flex-start',
-                  padding: 5,
-                  borderRadius: 20,
-                  fontSize: 12,
-                }}>
-                {item.status}
-              </Text>
-            ) : (
-              <Text
-                style={{
-                  backgroundColor: '#cc0000',
-                  color: '#fff',
-                  alignSelf: 'flex-start',
-                  padding: 5,
-                  borderRadius: 20,
-                  fontSize: 12,
-                }}>
-                {item.status}
-              </Text>
-            )}
+
+            {/* ************************************* */}
+
+            <View style={styles.listContent}>
+              <Icon
+                name="circle"
+                size={10}
+                color="green"
+                style={styles.circleStyle}
+              />
+              <View style={styles.cardContent}>
+                <Image
+                  style={{
+                    width: '80%',
+                    height: '100',
+                  }}
+                  source={{
+                    uri: 'https://m.media-amazon.com/images/I/61kCjpQeKRL._AC_UF1000,1000_QL80_.jpg',
+                  }}
+                />
+                <Text style={styles.cardContentName}>Cabbage</Text>
+                <Text style={styles.cardContentPrice}>Nu. 30 /unit</Text>
+                <TouchableOpacity>
+                  <Text
+                    style={{
+                      color: '#fff',
+                      backgroundColor: '#3385ff',
+                      paddingHorizontal: 20,
+                      marginVertical: 10,
+                    }}>
+                    Edit
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.listContent}>
+              <Icon
+                name="circle"
+                size={10}
+                color="green"
+                style={styles.circleStyle}
+              />
+              <View style={styles.cardContent}>
+                <Image
+                  style={{
+                    width: '80%',
+                    height: '100',
+                  }}
+                  source={{
+                    uri: 'https://m.media-amazon.com/images/I/61kCjpQeKRL._AC_UF1000,1000_QL80_.jpg',
+                  }}
+                />
+                <Text style={styles.cardContentName}>Cabbage</Text>
+                <Text style={styles.cardContentPrice}>Nu. 30 /unit</Text>
+                <TouchableOpacity>
+                  <Text
+                    style={{
+                      color: '#fff',
+                      backgroundColor: '#3385ff',
+                      paddingHorizontal: 20,
+                      marginVertical: 10,
+                    }}>
+                    Edit
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            {/* ************************************* */}
+            <View style={[styles.listContent, styles.emptyCard]}></View>
           </View>
-        ))}
+        </View>
       </View>
+      {/* ***************************************** Modal ************************* */}
+      <Modal
+        visible={modalVisibility}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setModalVisibility(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={handleDismiss}>
+              <Icon name="close" size={24} color="#b3b3b3" />
+            </TouchableOpacity>
+            {dp ? (
+              <Text style={styles.modalTitle}>Update Profile Picture</Text>
+            ) : (
+              <Text style={styles.modalTitle}>Upload Profile Picture</Text>
+            )}
+
+            {selectedImage ? (
+              <Image
+                source={{uri: selectedImage}}
+                style={styles.imagePreview}
+              />
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Icon name="person" size={60} color="#ccc" />
+              </View>
+            )}
+            <View style={styles.uploadOptions}>
+              <TouchableOpacity style={styles.uploadButton} onPress={pickImage}>
+                <Icon name="image" size={24} color="#fff" />
+                <Text style={styles.uploadButtonText}>Choose from Gallery</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.uploadButton} onPress={takePhoto}>
+                <Icon name="camera" size={24} color="#fff" />
+                <Text style={styles.uploadButtonText}>Take a Photo</Text>
+              </TouchableOpacity>
+
+              {selectedImage ? (
+                <>
+                  {dp ? (
+                    <TouchableOpacity
+                      style={styles.upload}
+                      onPress={updateImage}>
+                      <Icon name="upload" size={24} color="blue" />
+                      <Text style={styles.uploadButtonTextIcon}>Update</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.upload}
+                      onPress={uploadImage}>
+                      <Icon name="upload" size={24} color="blue" />
+                      <Text style={styles.uploadButtonTextIcon}>Upload</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              ) : null}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -277,38 +491,44 @@ const styles = StyleSheet.create({
     paddingLeft: 10,
     paddingBottom: 10,
   },
-  serviceSubBtn: {
-    backgroundColor: '#ff6600',
-    borderRadius: 20,
+  profileContent: {
     padding: 10,
-    paddingLeft: 30,
-    paddingRight: 30,
+    height: '100%',
     width: '100%',
-    margin: 'auto',
-    marginTop: 20,
   },
-  serviceSubBtnDisabled: {
-    backgroundColor: '#ff9980',
-    borderRadius: 20,
-    padding: 10,
-    paddingLeft: 30,
-    paddingRight: 30,
-    width: '100%',
-    margin: 'auto',
-    marginTop: 20,
-  },
-  serviceListContainer: {
-    width: '100%',
-    padding: 10,
-  },
-  serviceItem: {
-    padding: 10,
-    backgroundColor: '#fff',
-    marginVertical: 0,
-    borderRadius: 5,
-    elevation: 0.5,
+  listContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-evenly',
+    flexWrap: 'wrap',
+  },
+  listContent: {
+    backgroundColor: '#fff',
+    height: 250,
+    width: '45%',
+    marginVertical: 5,
+    elevation: 5,
+  },
+  cardContent: {
+    justifyContent: 'center',
     alignItems: 'center',
+  },
+  cardContentName: {
+    fontWeight: 800,
+    marginTop: 10,
+  },
+  cardContentPrice: {
+    color: 'red',
+    fontSize: 10,
+  },
+  emptyCard: {
+    elevation: 0,
+    backgroundColor: 'none',
+  },
+  circleStyle: {
+    margin: 10,
+    borderWidth: 0.5,
+    color: 'green',
+    borderRadius: 50,
+    width: 11,
   },
 });

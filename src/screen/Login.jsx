@@ -2,9 +2,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ImageBackground,
-  TouchableOpacity,
-  Animated,
   KeyboardAvoidingView,
   Platform,
   Alert,
@@ -13,7 +10,6 @@ import {
 
 import React, {useContext, useState} from 'react';
 import CustomInput from '../custom/CustomInput';
-import CustomButton from '../custom/CustomButton';
 import axios from 'axios';
 import API_BASE_URL from '../config';
 import {AuthContext} from '../custom/AuthContext';
@@ -36,15 +32,6 @@ export default function Login({navigation}) {
       password: '',
       phone: '',
     };
-
-    // if (!email.trim()) {
-    //   newErrors.email = 'Email is required.';
-    //   isValid = false;
-    // } else if (!/\S+@\S+\.\S+/.test(email)) {
-    //   newErrors.email = 'Invalid email format.';
-    //   isValid = false;
-    // }
-
     if (!phone.trim()) {
       newErrors.phone = 'Phone number is required.';
       isValid = false;
@@ -110,19 +97,6 @@ export default function Login({navigation}) {
       <Text style={styles.signup}>Sign In</Text>
       <Text style={styles.subtitle}>Login to continue</Text>
 
-      {/* <View style={styles.errorInputStyle}>
-        <CustomInput
-          placeholder="Email"
-          icon="email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-        />
-        {error.email ? (
-          <Text style={styles.errorText}>{error.email}</Text>
-        ) : null}
-      </View> */}
-
       <View style={styles.errorInputStyle}>
         <CustomInput
           placeholder="Phone"
@@ -174,6 +148,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
+    backgroundColor: '#fff',
     alignItems: 'center',
     padding: 40,
   },

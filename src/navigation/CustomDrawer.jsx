@@ -17,15 +17,15 @@ import {AuthContext} from '../custom/AuthContext';
 import LogoutDialog from '../custom/LogoutDialog';
 
 export default function CustomDrawer(props) {
-  const {logOut, firstName, lastName, email} = useContext(AuthContext);
+  const {logOut, userName, email} = useContext(AuthContext);
 
-  const [userName, setUserName] = useState('');
+  // const [userName, setUserName] = useState('');
   const [visible, setVisible] = useState(false);
 
-  useEffect(() => {
-    let userName = `${firstName} ${lastName}`;
-    setUserName(userName);
-  }, []);
+  // useEffect(() => {
+  //   let userName = `${firstName} ${lastName}`;
+  //   setUserName(userName);
+  // }, []);
 
   const showDialog = () => setVisible(true);
 
@@ -52,7 +52,7 @@ export default function CustomDrawer(props) {
 
       {/* Drawer Menu Items */}
       <View style={styles.drawerItems}>
-        <DrawerItemList {...props} />2
+        <DrawerItemList {...props} />
       </View>
 
       {/* Logout Button */}
