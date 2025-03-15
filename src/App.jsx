@@ -1,6 +1,5 @@
 import React from 'react';
 import AppNavigation from './navigation/AppNavigation';
-import OnboardingScreen from './screen/DcHScrn/OnboardingScreen';
 import {AuthProvider} from './custom/AuthContext';
 import Toast from 'react-native-toast-message';
 import {Provider as PaperProvider} from 'react-native-paper';

@@ -36,7 +36,8 @@ export default function OnboardingScreen({navigation}) {
 
   return (
     <>
-      <StatusBar backgroundColor="#3366ff" barStyle="light-content" />
+      {/* #3366ff */}
+      <StatusBar backgroundColor="#fff" barStyle="light-dark" />
 
       <LinearGradient
         colors={['#4c669f', '#3b5998', '#192f6a']}

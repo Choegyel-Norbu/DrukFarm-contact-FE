@@ -1,42 +1,94 @@
 import {
   Alert,
+  BackHandler,
   Button,
   Image,
   Modal,
+  PermissionsAndroid,
+  Pressable,
+  SafeAreaView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import React, {useCallback, useContext, useEffect, useState} from 'react';
-import {Pressable, ScrollView} from 'react-native-gesture-handler';
-import DropDownPicker from 'react-native-dropdown-picker';
-import {dummyArray} from '../../components/DummyArray';
+import {ScrollView} from 'react-native-gesture-handler';
 import {AuthContext} from '../../custom/AuthContext';
 import API_BASE_URL from '../../config';
 import axios from 'axios';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 import Toast from 'react-native-toast-message';
-import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {useFocusEffect} from '@react-navigation/native';
 
-export default function ProfileScr() {
-  const [selectedValue, setSelectedValue] = useState([]);
-  const {email, userName} = useContext(AuthContext);
-  const [modalVisibility, setModalVisibility] = useState(false);
+import ImageCropPicker from 'react-native-image-crop-picker';
+import LogoutDialog from '../../custom/LogoutDialog';
+
+export default function ProfileScr({navigation}) {
+  const {email, userName, logOut} = useContext(AuthContext);
+  const [userId, setUserId] = useState('');
   const [selectedImage, setSelectedImage] = useState('');
   const [userToken, setUserToken] = useState('');
   const [dpImgName, setDpImgName] = useState('');
   const [dpImgFileType, setDpImgFileType] = useState('');
   const [dp, setDp] = useState('');
+  const [dpModal, setDpModal] = useState(false);
+  const [deleteModal, setDeleteModal] = useState(false);
+  const [roles, setRoles] = useState([]);
+  const [fetchRoles, setFetchRoles] = useState([]);
+  const [roleModal, setRoleModal] = useState(false);
+  const [hideAddRole, setHideAddRole] = useState(false);
+  const [logOutVisible, setLogOutVisible] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchToken();
-    }, []),
-  );
+  useEffect(() => {
+    console.log('----------------------- New Render -------------------');
+    fetchToken();
+  }, []);
+
+  useEffect(() => {
+    const backAction = () => {
+      navigation.navigate('Profile'); // Navigate to Profile screen on back press
+      return true; // Prevent default back action
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction,
+    );
+
+    return () => backHandler.remove(); // Cleanup event listener on unmount
+  }, [navigation]);
+
+  useEffect(() => {
+    const fetchUserRoles = async () => {
+      const token = await AsyncStorage.getItem('userToken');
+      const id = await AsyncStorage.getItem('userId');
+      try {
+        const response = await axios.get(`${API_BASE_URL}api/getRoles/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const roleNames = response.data.map(role => role.name);
+        setFetchRoles(roleNames);
+
+        console.log(' User Roles fetched@@@ ' + fetchRoles);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    fetchUserRoles();
+  }, []);
+
+  useEffect(() => {
+    if (dp) {
+      updateImage();
+    } else {
+      uploadImage();
+    }
+  }, [selectedImage]);
 
   const getDP = useCallback(async token => {
     const response = await axios.get(`${API_BASE_URL}api/getDP/${email}`, {
@@ -44,18 +96,24 @@ export default function ProfileScr() {
         Authorization: `Bearer ${token}`,
       },
     });
-    console.log('----------------------------------------------------');
-    const encoded = response.data.replace(/ /g, '%20');
-    setDp(encoded);
+    console.log(
+      '------------------------ New Render----------------------------',
+    );
+    setDp(response.data);
   });
+
+  // useEffect(() => {
+  //   console.log('New roles added: ' + roles);
+  // }, [roles]);
 
   const fetchToken = async () => {
     try {
       const token = await AsyncStorage.getItem('userToken');
+      const id = await AsyncStorage.getItem('userId');
+      setUserId(id);
       if (token) {
         setUserToken(token);
         getDP(token);
-        console.log('User Token @@@ =' + userToken);
       } else {
         console.log('Effor fetching token');
       }
@@ -64,125 +122,96 @@ export default function ProfileScr() {
     }
   };
 
-  useEffect(() => {
-    if (selectedValue && selectedValue.length > 0) {
-      console.log('inside useEffect');
-      fetchData();
-    }
-  }, [selectedValue]);
-
-  const fetchData = async () => {
+  const deleteProfilePhoto = async () => {
     try {
-      const response = await axios.post(`${API_BASE_URL}api/getServices`, {
-        email,
-      });
-      setRetrivedServices(response.data);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    }
-  };
-  const [open, setOpen] = useState(false);
-
-  const [services, setServices] = useState([]);
-  const [items, setItems] = useState([
-    {label: 'Donation', value: 'Donation'},
-    {label: 'Physical service', value: 'Physical service'},
-    {label: 'Tution', value: 'Tution'},
-    {label: 'Online consultant', value: 'Online consultation'},
-    {label: 'Other', value: 'Other'},
-  ]);
-
-  const [isActive, setIsActive] = useState(true);
-  const [buttonDisabled, setButtonDisabled] = useState(false);
-
-  const serviceOffers = dummyArray();
-
-  const renderServiceList = ({item}) => {
-    return (
-      <View style={styles.serviceItem}>
-        <Text style={{fontSize: 14, fontWeight: '200'}}>{item.service}</Text>
-        <Text style={{backgroundColor: 'green', color: '#fff', width: 'auto'}}>
-          {item.status}
-        </Text>
-        <Text>{item.date}</Text>
-      </View>
-    );
-  };
-  const handleImageModal = () => {
-    setModalVisibility(true);
-  };
-  const handleServiceSubmit = async () => {
-    const requestData = {
-      email,
-      services,
-    };
-    if (services.length === 0) {
-      Toast.show({
-        type: 'error',
-        text1: 'You must select atleast one service.',
-        position: 'top',
-        visibilityTime: 3000,
-      });
-      return;
-    }
-    try {
-      const response = await axios.post(
-        `${API_BASE_URL}api/addServices`,
-        requestData,
-        {
-          headers: {
-            'Content-Type': 'Application/json',
-          },
+      const token = await AsyncStorage.getItem('userToken');
+      console.log(token);
+      await axios.delete(`${API_BASE_URL}api/deleteDP/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      );
-      Toast.show({
-        type: 'success',
-        text1: 'Services successfully saved! 🎉',
-        position: 'top',
-        visibilityTime: 3000,
       });
-      setServices([]);
-      // setButtonDisabled(true);
+      console.log('After deleting');
+      setDeleteModal(false);
+      setDp('');
     } catch (error) {
-      Alert.alert(error);
+      console.log(error);
     }
+  };
+
+  const dpHandle = () => {
+    setDpModal(true);
   };
 
   const pickImage = () => {
-    launchImageLibrary(
-      {
-        mediaType: 'photo',
-        quality: 1,
-      },
-      response => handleResponse(response),
-    );
+    ImageCropPicker.openPicker({
+      width: 300,
+      height: 300,
+      cropping: true,
+    }).then(image => {
+      if (image.didCancel) {
+        console.log('Cancelled image upload');
+      } else if (image.error) {
+        console.log('Image picker error', image.error);
+      } else {
+        setSelectedImage(image.path);
+        setDpImgName(image.filename);
+        setDpImgFileType(image.mime);
+      }
+      setDpModal(false);
+    });
   };
 
-  const takePhoto = () => {
-    launchCamera({mediaType: 'photo', quality: 1}, response =>
-      handleResponse(response),
-    );
-  };
+  const takePhoto = async () => {
+    const hasPermission = await requestCameraPermission();
+    if (!hasPermission) {
+      console.log('Camera permission denied');
+      return;
+    }
 
-  const handleResponse = response => {
-    let name = '';
+    try {
+      const image = await ImageCropPicker.openCamera({
+        width: 300,
+        height: 300,
+        cropping: true,
+      });
 
-    if (response.didCancel) {
-      console.log('Cancelled image upload');
-    } else if (response.errorCode) {
-      console.log('Image picker error', response.errorCode);
-    } else {
-      const imageURI = response.assets[0].uri;
-      const {fileName, type} = response.assets[0];
-      setDpImgName(fileName);
-      setDpImgFileType(type);
-      setSelectedImage(imageURI);
+      if (!image) {
+        console.log('No image selected');
+        return;
+      }
+
+      setSelectedImage(image.path);
+      setDpImgName(image.filename || 'captured_image.jpg');
+      setDpImgFileType(image.mime);
+
+      setDpModal(false);
+    } catch (error) {
+      if (error.message.includes('User cancelled')) {
+        console.log('User cancelled the camera');
+      } else {
+        console.log('Camera error:', error.message);
+      }
     }
   };
 
-  const handleDismiss = () => {
-    setModalVisibility(false);
-    setSelectedImage('');
+  const requestCameraPermission = async () => {
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+        {
+          title: 'Camera Permission',
+          message: 'We need access to your camera to take pictures',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
+        },
+      );
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    } catch (err) {
+      console.warn(err);
+      return false;
+    }
   };
 
   const uploadImage = async () => {
@@ -211,7 +240,7 @@ export default function ProfileScr() {
         position: 'top',
         visibilityTime: 2000,
       });
-      setModalVisibility(false);
+      dpModal(false);
     } catch (error) {
       console.log(error);
     }
@@ -237,246 +266,433 @@ export default function ProfileScr() {
         },
       );
       setDp(response.data);
+      setSelectedImage('');
+      setDpImgFileType('');
+      setDpImgName('');
       Toast.show({
         type: 'success',
         text1: ' Profile photo updated successfully',
         position: 'top',
         visibilityTime: 2000,
       });
-      setModalVisibility(false);
+      dpModal(false);
+    } catch (error) {
+      console.log('Error inside update Function ' + error);
+    }
+  };
+
+  const handleSelectedRoles = selectedRole => {
+    console.log('You have selected @@@: ' + selectedRole);
+    setRoles((prevRoles = []) => {
+      return prevRoles.includes(selectedRole)
+        ? prevRoles.filter(role => role !== selectedRole)
+        : [...prevRoles, selectedRole];
+    });
+  };
+
+  const handleSubmitRole = async () => {
+    const roleData = {
+      requestRole: roles,
+    };
+    try {
+      const response = await axios.put(
+        `${API_BASE_URL}api/addRoles/${userId}`,
+        roleData,
+        {
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+          },
+        },
+      );
+      Toast.show({
+        type: 'success',
+        text1: 'Role added successfully',
+        position: 'top',
+        visibilityTime: 3000,
+      });
+      setHideAddRole(true);
+      console.log(
+        ' This is response after addding roles @@@  ' + response.data,
+      );
     } catch (error) {
       console.log(error);
     }
   };
 
-  const handleProductList = () => {
-    return (
-      <View style={styles.listContainer}>
-        <View style={styles.listContent}></View>
-        <View style={[styles.listContent, styles.emptyCard]}></View>
-      </View>
-    );
+  const handleLogout = async () => {
+    hideDialog();
+    logOut();
+  };
+
+  const hideDialog = () => {
+    setLogOutVisible(false);
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.container}
-      showsVerticalScrollIndicator={false}>
-      <View style={styles.profileHeader}>
-        <View style={styles.profileImg}>
-          <Pressable onPress={handleImageModal}>
-            {dp ? (
-              <Image
-                style={{height: 80, width: 80, borderRadius: 60}}
-                source={{
-                  uri: dp,
-                }}
-              />
-            ) : (
-              <Icon name="person" size={60} color="#b3b3b3" />
-            )}
-          </Pressable>
-        </View>
-        <View style={styles.profileDetail}>
-          <Text style={{fontWeight: '700', fontSize: 16}}>{userName}</Text>
-          <Text style={{marginBottom: 10, fontSize: 12}}>{email}</Text>
-          <Button title="Edit profile" onPress={getDP} />
-        </View>
-      </View>
-
-      <View style={styles.profileContent}>
-        <View style={styles.farmerContent}>
-          <Text>Products you have listed: </Text>
-          <View style={styles.listContainer}>
-            <View style={styles.listContent}>
-              <Icon
-                name="circle"
-                size={10}
-                color="green"
-                style={styles.circleStyle}
-              />
-              <View style={styles.cardContent}>
-                <Image
-                  style={{
-                    width: '80%',
-                    height: '100',
-                  }}
-                  source={{
-                    uri: 'https://media.gettyimages.com/id/1367696088/photo/fresh-sliced-mango-isolated-on-white-background.jpg?s=612x612&w=gi&k=20&c=ZLTaWVPiq7DNkFWZA79Ii8V9iBywc4_q6CKz1F0nEwA=',
-                  }}
-                />
-                <Text style={styles.cardContentName}>Mango</Text>
-                <Text style={styles.cardContentPrice}>Nu. 30 /unit</Text>
-                <TouchableOpacity>
-                  <Text
-                    style={{
-                      color: '#fff',
-                      backgroundColor: '#3385ff',
-                      paddingHorizontal: 20,
-                      marginVertical: 10,
-                    }}>
-                    Edit
-                  </Text>
-                </TouchableOpacity>
-              </View>
+    <SafeAreaView style={{flex: 1}}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}>
+        <View style={styles.profileHeader}>
+          <View style={{flexDirection: 'row'}}>
+            <View style={styles.profileStatusBar}>
+              <Pressable
+                style={{marginRight: 10}}
+                onPress={() => navigation.navigate('Homestack')}>
+                <Icon name="arrow-back" size={24} style={{color: '#333333'}} />
+              </Pressable>
+              <Text style={{color: '#333333', fontSize: 20}}>Profile</Text>
             </View>
-
-            {/* ************************************* */}
-
-            <View style={styles.listContent}>
-              <Icon
-                name="circle"
-                size={10}
-                color="green"
-                style={styles.circleStyle}
+            <View style={{flexDirection: 'row', alignItems: 'center'}}>
+              <Pressable
+                onPress={() =>
+                  navigation.navigate('Homestack', {screen: 'Settings'})
+                }>
+                <Icon name="settings" size={24} color="#666666" />
+              </Pressable>
+              <Pressable
+                style={{paddingHorizontal: 10}}
+                onPress={() => setLogOutVisible(true)}>
+                <Icon name="logout" size={24} color="#666666" />
+              </Pressable>
+              <LogoutDialog
+                visible={logOutVisible}
+                onDismiss={() => setLogOutVisible(false)}
+                onConfirm={handleLogout}
               />
-              <View style={styles.cardContent}>
-                <Image
-                  style={{
-                    width: '80%',
-                    height: '100',
-                  }}
-                  source={{
-                    uri: 'https://m.media-amazon.com/images/I/61kCjpQeKRL._AC_UF1000,1000_QL80_.jpg',
-                  }}
-                />
-                <Text style={styles.cardContentName}>Cabbage</Text>
-                <Text style={styles.cardContentPrice}>Nu. 30 /unit</Text>
-                <TouchableOpacity>
-                  <Text
-                    style={{
-                      color: '#fff',
-                      backgroundColor: '#3385ff',
-                      paddingHorizontal: 20,
-                      marginVertical: 10,
-                    }}>
-                    Edit
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
 
-            <View style={styles.listContent}>
-              <Icon
-                name="circle"
-                size={10}
-                color="green"
-                style={styles.circleStyle}
-              />
-              <View style={styles.cardContent}>
-                <Image
-                  style={{
-                    width: '80%',
-                    height: '100',
-                  }}
-                  source={{
-                    uri: 'https://m.media-amazon.com/images/I/61kCjpQeKRL._AC_UF1000,1000_QL80_.jpg',
-                  }}
+              {/* <TouchableOpacity
+                style={styles.logoutButton}
+                onPress={() => setLogOutVisible(true)}>
+                <Icon name="logout" size={22} color="white" />
+                <Text style={styles.logoutText}>Logout</Text>
+                <LogoutDialog
+                  visible={logOutVisible}
+                  onDismiss={() => setLogOutVisible(false)}
+                  onConfirm={handleLogout}
                 />
-                <Text style={styles.cardContentName}>Cabbage</Text>
-                <Text style={styles.cardContentPrice}>Nu. 30 /unit</Text>
-                <TouchableOpacity>
-                  <Text
-                    style={{
-                      color: '#fff',
-                      backgroundColor: '#3385ff',
-                      paddingHorizontal: 20,
-                      marginVertical: 10,
-                    }}>
-                    Edit
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              </TouchableOpacity> */}
             </View>
-            {/* ************************************* */}
-            <View style={[styles.listContent, styles.emptyCard]}></View>
           </View>
-        </View>
-      </View>
-      {/* ***************************************** Modal ************************* */}
-      <Modal
-        visible={modalVisibility}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setModalVisibility(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={handleDismiss}>
-              <Icon name="close" size={24} color="#b3b3b3" />
-            </TouchableOpacity>
-            {dp ? (
-              <Text style={styles.modalTitle}>Update Profile Picture</Text>
-            ) : (
-              <Text style={styles.modalTitle}>Upload Profile Picture</Text>
-            )}
-
-            {selectedImage ? (
-              <Image
-                source={{uri: selectedImage}}
-                style={styles.imagePreview}
-              />
-            ) : (
-              <View style={styles.imagePlaceholder}>
-                <Icon name="person" size={60} color="#ccc" />
-              </View>
-            )}
-            <View style={styles.uploadOptions}>
-              <TouchableOpacity style={styles.uploadButton} onPress={pickImage}>
-                <Icon name="image" size={24} color="#fff" />
-                <Text style={styles.uploadButtonText}>Choose from Gallery</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.uploadButton} onPress={takePhoto}>
-                <Icon name="camera" size={24} color="#fff" />
-                <Text style={styles.uploadButtonText}>Take a Photo</Text>
-              </TouchableOpacity>
-
-              {selectedImage ? (
-                <>
+          <View style={styles.headerMain}>
+            <View style={styles.headerContent}>
+              <View style={styles.profileDetail}>
+                <Pressable onPress={dpHandle}>
                   {dp ? (
-                    <TouchableOpacity
-                      style={styles.upload}
-                      onPress={updateImage}>
-                      <Icon name="upload" size={24} color="blue" />
-                      <Text style={styles.uploadButtonTextIcon}>Update</Text>
-                    </TouchableOpacity>
+                    <Image
+                      style={{height: 90, width: 90, borderRadius: 60}}
+                      source={{
+                        uri: dp,
+                      }}
+                    />
                   ) : (
-                    <TouchableOpacity
-                      style={styles.upload}
-                      onPress={uploadImage}>
-                      <Icon name="upload" size={24} color="blue" />
-                      <Text style={styles.uploadButtonTextIcon}>Upload</Text>
-                    </TouchableOpacity>
+                    <Icon name="person" size={60} color="#b3b3b3" />
                   )}
-                </>
-              ) : null}
+                </Pressable>
+                <Text style={{fontSize: 20, fontWeight: 400, marginTop: 10}}>
+                  {userName}
+                </Text>
+              </View>
+              <View style={styles.profileStatus}>
+                <View style={styles.details}>
+                  <Text style={styles.detailCount}>23</Text>
+                  <Text style={styles.detailDesc}>Products</Text>
+                </View>
+                <View style={styles.details}>
+                  <Text style={styles.detailCount}>6</Text>
+                  <Text style={styles.detailDesc}>Cart</Text>
+                </View>
+              </View>
             </View>
           </View>
         </View>
-      </Modal>
-    </ScrollView>
+        {/* <Pressable
+          style={{width: '100%'}}
+          onPress={() => navigation.navigate('Homestack', {screen: 'Details'})}>
+          <Button title="Complete your profile" />
+        </Pressable> */}
+
+        <View style={styles.profileDetailContent}>
+          <Text
+            style={{
+              textAlign: 'center',
+              fontSize: 18,
+              fontWeight: 700,
+              color: '#666666',
+              marginBottom: '7%',
+            }}>
+            Profile Detail
+          </Text>
+          <View style={styles.profileDetailItemContainer}>
+            <Icon
+              name="person"
+              size={24}
+              color="#66a3ff"
+              style={styles.profileDetailItemIcon}
+            />
+            <View>
+              <Text style={styles.profileDetailItemText01}>User Name</Text>
+              <Text style={styles.profileDetailItemText02}>Chogyal</Text>
+            </View>
+          </View>
+          <View style={styles.profileDetailItemContainer}>
+            <Icon
+              name="email"
+              size={24}
+              color="#66a3ff"
+              style={styles.profileDetailItemIcon}
+            />
+            <View>
+              <Text style={styles.profileDetailItemText01}>Email Address</Text>
+              <Text style={styles.profileDetailItemText02}>
+                Chogyal@gmail.com
+              </Text>
+            </View>
+          </View>
+          <View style={styles.profileDetailItemContainer}>
+            <Icon
+              name="phone"
+              size={24}
+              color="#66a3ff"
+              style={styles.profileDetailItemIcon}
+            />
+            <View>
+              <Text style={styles.profileDetailItemText01}>Phone Number</Text>
+              <Text style={styles.profileDetailItemText02}>+97517482648</Text>
+            </View>
+          </View>
+          <View style={styles.profileDetailItemContainer}>
+            <Icon
+              name="map"
+              size={24}
+              color="#66a3ff"
+              style={styles.profileDetailItemIcon}
+            />
+            <View>
+              <Text style={styles.profileDetailItemText01}>Location</Text>
+              <Text style={styles.profileDetailItemText02}>Wamrong, Moshi</Text>
+            </View>
+          </View>
+        </View>
+
+        <Pressable
+          onPress={() =>
+            navigation.navigate('ProfileStack', {screen: 'Details'})
+          }>
+          <Text>Details </Text>
+        </Pressable>
+
+        {hideAddRole && (
+          <>
+            <View style={styles.profileContent}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  marginLeft: 20,
+                  alignItems: 'center',
+                  position: 'relative',
+                }}>
+                <Text>Add role: </Text>
+                <Pressable
+                  onPress={() => setRoleModal(!roleModal)}
+                  style={{position: 'relative'}}>
+                  <Icon name="arrow-drop-down" size={28} />
+                </Pressable>
+              </View>
+            </View>
+            {roles.length !== 0 ? (
+              <>
+                <View style={styles.rolePreviewContainer}>
+                  {roles.map(item => (
+                    <Text style={styles.rolePreviewText}>{item}</Text>
+                  ))}
+                </View>
+                <Pressable
+                  onPress={handleSubmitRole}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    position: 'absolute',
+                    top: '54%',
+                    right: '5%',
+                  }}>
+                  <Text
+                    style={{marginHorizontal: 5, color: 'blue', fontSize: 14}}>
+                    Submit
+                  </Text>
+
+                  <Icon name="arrow-forward" size={16} color="blue" />
+                </Pressable>
+              </>
+            ) : null}
+          </>
+        )}
+
+        {/* *********************** Role Modal *********************** */}
+        <Modal visible={roleModal} transparent={true} animationType="fade">
+          <Pressable onPress={() => setRoleModal(false)} style={{flex: 1}}>
+            <View style={styles.roleModalContainer}>
+              <Pressable
+                style={styles.roleContent}
+                onPress={() => handleSelectedRoles('Farmer')}>
+                <Text>Farmer</Text>
+              </Pressable>
+              <Pressable
+                style={styles.roleContent}
+                onPress={() => handleSelectedRoles('Buyer')}>
+                <Text>Buyer</Text>
+              </Pressable>
+              <Pressable
+                style={styles.roleContent}
+                onPress={() => handleSelectedRoles('Transporter')}>
+                <Text>Transporter</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Modal>
+
+        {/* *********************** DP modal *********************** */}
+        <Modal
+          visible={dpModal}
+          transparent={true}
+          onRequestClose={() => setDpModal(false)}
+          pointerEvents="box-none" // Ensures clicks are detected properly
+        >
+          <Pressable
+            style={styles.dpModalContainer}
+            onPress={() => setDpModal(false)}>
+            <View style={styles.dpModalContent}>
+              <View style={styles.dpModalHeading}>
+                <Icon name="close" size={24} color="#666666" />
+                <Text style={{fontSize: 18, color: '#666666'}}>
+                  Profile photo
+                </Text>
+                <Pressable onPress={() => setDeleteModal(true)}>
+                  <Icon name="delete" size={24} color="#666666" />
+                </Pressable>
+              </View>
+              <View style={styles.dpModalBody}>
+                <Pressable onPress={pickImage} style={{alignItems: 'center'}}>
+                  <Icon
+                    name="image"
+                    size={24}
+                    color="#248f24"
+                    style={{margin: 5}}
+                  />
+                  <Text>Gallery</Text>
+                </Pressable>
+                <Pressable onPress={takePhoto} style={{alignItems: 'center'}}>
+                  <Icon
+                    name="camera"
+                    size={24}
+                    color="#248f24"
+                    style={{margin: 5}}
+                  />
+                  <Text>Camera</Text>
+                </Pressable>
+              </View>
+            </View>
+          </Pressable>
+        </Modal>
+
+        {/* *********************** Delete Modal *********************** */}
+
+        <Modal visible={deleteModal} transparent={true}>
+          <Pressable
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+            onPress={() => setDeleteModal(false)}>
+            <View style={styles.deleteModalContainer}>
+              <View style={{flex: 1, justifyContent: 'center', fontSize: 18}}>
+                <Text>Delete profile photo?</Text>
+              </View>
+              <View
+                style={{
+                  flex: 1,
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                  flexDirection: 'row',
+                }}>
+                <Pressable onPress={() => setDeleteModal(false)}>
+                  <Text style={{marginHorizontal: 20}}>Cancel</Text>
+                </Pressable>
+                <Pressable onPress={deleteProfilePhoto}>
+                  <Text>Delete</Text>
+                </Pressable>
+              </View>
+            </View>
+          </Pressable>
+        </Modal>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#f5f5f5',
     alignItems: 'center',
+    backgroundColor: '#fff',
   },
   profileHeader: {
-    height: '20%',
+    height: '40%',
     width: '100%',
     alignItems: 'center',
+  },
+  profileStatusBar: {
+    flex: 1,
+    width: '100%',
     flexDirection: 'row',
-    backgroundColor: '#f2f2f2',
+    justifyContent: 'flex-start',
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    padding: 20,
+  },
+  headerMain: {
+    flex: 4,
+    width: '90%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderTopRightRadius: 20,
+    borderTopLeftRadius: 20,
+    marginHorizontal: 10,
+    borderBottomWidth: 0.5,
+  },
+  headerContent: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   profileImg: {
-    marginLeft: 20,
+    height: 90,
+    width: 90,
+    borderRadius: 70,
   },
   profileDetail: {
-    marginLeft: 20,
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  profileStatus: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  details: {
+    marginHorizontal: 10,
+    alignItems: 'center',
+  },
+  detailCount: {
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  detailDesc: {
+    fontSize: 12,
   },
   dropDownMainContainer: {
     width: '97%',
@@ -492,43 +708,179 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   profileContent: {
-    padding: 10,
-    height: '100%',
+    flex: 3,
+    paddingVertical: 20,
+    paddingHorizontal: 10,
     width: '100%',
   },
-  listContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-evenly',
-    flexWrap: 'wrap',
-  },
-  listContent: {
-    backgroundColor: '#fff',
-    height: 250,
-    width: '45%',
-    marginVertical: 5,
-    elevation: 5,
-  },
-  cardContent: {
+  modalOverlay: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent background
   },
-  cardContentName: {
-    fontWeight: 800,
+  modalContainer: {
+    width: '90%', // Adjust width as needed
+    backgroundColor: '#fff',
+    borderRadius: 20, // Rounded corners
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 5, // For Android shadow
+  },
+  closeButton: {
+    alignSelf: 'flex-end', // Align to the top-right corner
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    color: '#333',
+  },
+  imagePreview: {
+    width: 150,
+    height: 150,
+    borderRadius: 75, // Circular image
+    borderWidth: 2,
+    borderColor: '#ccc',
+    marginBottom: 20,
+  },
+  imagePlaceholder: {
+    width: 150,
+    height: 150,
+    borderRadius: 75, // Circular placeholder
+    borderWidth: 2,
+    borderColor: '#ccc',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  uploadOptions: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  uploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#007bff', // Blue background
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25, // Rounded corners
+    marginBottom: 10,
+    width: '80%',
+    justifyContent: 'center',
+  },
+  uploadButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    marginLeft: 10,
+  },
+  upload: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 10,
   },
-  cardContentPrice: {
-    color: 'red',
-    fontSize: 10,
+  uploadButtonTextIcon: {
+    color: 'blue',
+    fontSize: 16,
+    marginLeft: 10,
   },
-  emptyCard: {
-    elevation: 0,
-    backgroundColor: 'none',
+  dpModalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent background
   },
-  circleStyle: {
-    margin: 10,
+  dpModalContent: {
+    height: 200,
+    width: '100%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    backgroundColor: '#fff',
+  },
+  dpModalHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+  },
+  dpModalBody: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    marginTop: 30,
+  },
+  deleteModalContainer: {
+    width: '80%',
+    height: 130,
+    backgroundColor: '#fff',
+    borderRadius: 30,
+    paddingHorizontal: 30,
+  },
+  roleModalContainer: {
+    position: 'absolute',
+    top: '49%',
+    left: '5%',
+    backgroundColor: '#fff',
+  },
+  roleContent: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  rolePreviewContainer: {
+    position: 'absolute',
+    flexDirection: 'row',
+    top: '48%',
+    right: '5%',
+    padding: 5,
+  },
+  rolePreviewText: {
     borderWidth: 0.5,
-    color: 'green',
-    borderRadius: 50,
-    width: 11,
+    borderRadius: 5,
+    padding: 10,
+    marginHorizontal: 3,
+  },
+  profileDetailContent: {
+    width: '90%',
+    borderRadius: 10,
+    borderWidth: 0.5,
+    borderColor: '#cccccc',
+    marginTop: '4%',
+    padding: '2%',
+  },
+  profileDetailItemContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    margin: '3%',
+  },
+  profileDetailItemText01: {
+    fontSize: 16,
+    fontWeight: 800,
+    color: '#4d4d4d',
+    marginHorizontal: '3%',
+  },
+  profileDetailItemText02: {
+    fontSize: 14,
+    fontWeight: 200,
+    marginHorizontal: '3%',
+    color: '#4d4d4d',
+  },
+  profileDetailItemIcon: {
+    marginHorizontal: '2%',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#cc5200',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    margin: 20,
+    borderRadius: 25,
+  },
+  logoutText: {
+    fontSize: 16,
+    color: '#fff',
+    marginLeft: 10,
   },
 });

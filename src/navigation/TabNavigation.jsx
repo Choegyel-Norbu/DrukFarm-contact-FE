@@ -1,21 +1,22 @@
-import React, {useState} from 'react';
+import React, {useEffect} from 'react';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import PRscr from '../screen/DcHScrn/PRscr';
 import {createStackNavigator} from '@react-navigation/stack';
 import HomeScr from '../screen/DcHScrn/HomeScr';
 import PRdetails from '../screen/DcHScrn/PRdetails';
 import HRlisingScr from '../screen/DcHScrn/HRlisingScr';
-import Service from '../screen/DcHScrn/Service';
 import ProfileScr from '../screen/DcHScrn/ProfileScr';
-import Offer from '../screen/DcHScrn/Offer';
 import Request from '../screen/DcHScrn/Request';
 import Product from '../screen/DrukFarm/Product';
 import ProductDetail from '../screen/DrukFarm/ProductDetail';
+import Settings from '../screen/DrukFarm/Settings';
+import Detail from '../screen/DrukFarm/Detail';
+import {getFocusedRouteNameFromRoute} from '@react-navigation/native';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
+// Home Stack (No tab hiding required)
 const HomeStack = () => {
   return (
     <Stack.Navigator>
@@ -26,11 +27,22 @@ const HomeStack = () => {
       />
       <Stack.Screen name="PRdetails" component={PRdetails} />
       <Stack.Screen name="HRlisting" component={HRlisingScr} />
+      <Stack.Screen name="Settings" component={Settings} />
     </Stack.Navigator>
   );
 };
 
-const ProductStack = () => {
+// Product Stack (Hide tab bar when inside ProductDetail)
+const ProductStack = ({navigation, route}) => {
+  useEffect(() => {
+    const routeName = getFocusedRouteNameFromRoute(route);
+    if (routeName === 'ProductDetail') {
+      navigation.getParent()?.setOptions({tabBarStyle: {display: 'none'}});
+    } else {
+      navigation.getParent()?.setOptions({tabBarStyle: {display: 'flex'}});
+    }
+  }, [navigation, route]);
+
   return (
     <Stack.Navigator>
       <Stack.Screen
@@ -47,17 +59,42 @@ const ProductStack = () => {
   );
 };
 
+// Profile Stack (Hide tab bar when inside Details)
+const ProfileStack = ({navigation, route}) => {
+  useEffect(() => {
+    const routeName = getFocusedRouteNameFromRoute(route);
+    if (routeName === 'Details') {
+      navigation.getParent()?.setOptions({tabBarStyle: {display: 'none'}});
+    } else {
+      navigation.getParent()?.setOptions({tabBarStyle: {display: 'flex'}});
+    }
+  }, [navigation, route]);
+
+  return (
+    <Stack.Navigator screenOptions={{headerShown: false}}>
+      <Stack.Screen name="Profile" component={ProfileScr} />
+      <Stack.Screen
+        name="Details"
+        component={Detail}
+        options={{headerShown: true}}
+      />
+    </Stack.Navigator>
+  );
+};
+
+// Main Bottom Tab Navigation
 export default function TabNavigation() {
   return (
     <Tab.Navigator
-      screenOptions={{
+      screenOptions={({route}) => ({
         headerShown: false,
-        tabBarActiveTintColor: '#3399ff', // Active icon and label color
-        tabBarInactiveTintColor: '#4d4d4d', // Inactive icon and label color
+        tabBarActiveTintColor: '#3399ff',
+        tabBarInactiveTintColor: '#4d4d4d',
         tabBarHideOnKeyboard: true,
-      }}>
+        tabBarStyle: getTabBarVisibility(route),
+      })}>
       <Tab.Screen
-        name="Home"
+        name="Homestack"
         component={HomeStack}
         options={{
           tabBarIcon: ({color}) => <Icon name="home" size={28} color={color} />,
@@ -65,7 +102,7 @@ export default function TabNavigation() {
       />
 
       <Tab.Screen
-        name="Product"
+        name="Productstack"
         component={ProductStack}
         options={{
           tabBarIcon: ({color}) => (
@@ -85,8 +122,8 @@ export default function TabNavigation() {
       />
 
       <Tab.Screen
-        name="Profile"
-        component={ProfileScr}
+        name="ProfileStack"
+        component={ProfileStack}
         options={{
           tabBarIcon: ({color}) => (
             <Icon name="person" size={28} color={color} />
@@ -96,3 +133,11 @@ export default function TabNavigation() {
     </Tab.Navigator>
   );
 }
+
+// Utility function to determine tab bar visibility
+const getTabBarVisibility = route => {
+  const routeName = getFocusedRouteNameFromRoute(route);
+  return routeName === 'Details' || routeName === 'ProductDetail'
+    ? {display: 'none'}
+    : {display: 'flex'};
+};

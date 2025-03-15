@@ -5,7 +5,6 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Modal,
   Alert,
 } from 'react-native';
 import CustomInput from '../custom/CustomInput';
@@ -14,6 +13,7 @@ import API_BASE_URL from '../config.jsx';
 import {Pressable, ScrollView} from 'react-native-gesture-handler';
 import Toast from 'react-native-toast-message';
 import CheckBox from '@react-native-community/checkbox';
+
 import {
   FacebookSocialButton,
   GoogleSocialButton,

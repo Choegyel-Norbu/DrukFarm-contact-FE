@@ -1,4 +1,5 @@
-import React, {useState} from 'react';
+import axios from 'axios';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -10,23 +11,76 @@ import {
   Pressable,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import API_BASE_URL from '../../config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const {width} = Dimensions.get('window');
 
 const ProductDetail = ({route, navigation}) => {
-  const {product} = route.params; // Product data passed from the product list
+  const {product} = route.params;
   const [more, setMore] = useState(false);
+  const [details, setDetails] = useState({});
+  const [userId, setUserId] = useState('');
+  const [token, setToken] = useState('');
+
+  useEffect(() => {
+    const getUser = async () => {
+      const id = await AsyncStorage.getItem('userId');
+      setUserId(id);
+      const userToken = await AsyncStorage.getItem('userToken');
+      setToken(userToken);
+      console.log('user id inside first effect @@@ ' + userId);
+      console.log('token inside first effect @@@ ' + token);
+    };
+    getUser();
+  }, []);
+
+  useEffect(() => {
+    const fetchFarmerDetails = async () => {
+      if (!userId || !token) {
+        console.log('Missing userId or token');
+        return;
+      }
+
+      try {
+        console.log('Inside try;');
+        const {data} = await axios.get(
+          `${API_BASE_URL}api/getProdDetalFarmerDetail/${userId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+        console.log('Response ' + data);
+        setDetails(data);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    fetchFarmerDetails();
+  }, [more]);
 
   return (
     <ScrollView style={styles.container}>
       {/* Product Image */}
       <View style={styles.imageContainer}>
-        <Image
-          source={{
-            uri: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRTUshuJ5pq_Qn3RhB2FKXWNap5MYGl-JZZng&s',
-          }}
-          style={styles.productImage}
-        />
+        {product.url.length !== 0 ? (
+          <Image
+            source={{
+              uri: product.url[0],
+            }}
+            style={styles.productImage}
+          />
+        ) : (
+          <Image
+            style={styles.productImage}
+            source={{
+              uri: 'https://media.istockphoto.com/id/1409329028/vector/no-picture-available-placeholder-thumbnail-icon-illustration-design.jpg?s=612x612&w=0&k=20&c=_zOuJu755g2eEUioiOUdz_mHKJQJn-tDgIAhQzyeKUQ=',
+            }}
+          />
+        )}
       </View>
 
       {/* Back Button */}
@@ -71,18 +125,33 @@ const ProductDetail = ({route, navigation}) => {
           {more && (
             <View style={styles.moreDetail}>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Harvest Date:</Text>
-                <Text style={styles.detailValue}>2032/09/30</Text>
-              </View>
-
-              <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Farmer Name:</Text>
-                <Text style={styles.detailValue}>John Doe</Text>
+                <Text style={styles.detailValue}>{details.farmerName}</Text>
               </View>
 
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Farm Location:</Text>
-                <Text style={styles.detailValue}>Bhutan Valley</Text>
+                <Text style={styles.detailValue}>{details.farmName}</Text>
+              </View>
+
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Farm size:</Text>
+                <Text style={styles.detailValue}>{details.farmSize}</Text>
+              </View>
+
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Quantity:</Text>
+                <Text style={styles.detailValue}>{details.quantity}</Text>
+              </View>
+
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Harvest Date:</Text>
+                <Text style={styles.detailValue}>{details.harvestDate}</Text>
+              </View>
+
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Delivery:</Text>
+                <Text style={styles.detailValue}>{details.delivery}</Text>
               </View>
             </View>
           )}
@@ -91,7 +160,7 @@ const ProductDetail = ({route, navigation}) => {
         {/* Add to Cart Button */}
         <TouchableOpacity style={styles.addToCartButton}>
           <Text style={styles.addToCartButtonText}>Add to Cart</Text>
-          <Icon name="shopping-cart" size={24} color="#fff" />
+          <Icon name="shopping-cart" size={20} color="#fff" />
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -206,17 +275,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   addToCartButton: {
-    backgroundColor: '#FF5722',
+    backgroundColor: '#3399ff',
+    width: '40%',
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 15,
-    borderRadius: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
     marginTop: 30,
     elevation: 3,
   },
   addToCartButtonText: {
-    fontSize: 18,
+    fontSize: 13,
     fontWeight: 'bold',
     marginHorizontal: 10,
     color: '#fff',

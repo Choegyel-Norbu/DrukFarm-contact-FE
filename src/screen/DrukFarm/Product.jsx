@@ -10,22 +10,20 @@ import {
   TextInput,
   SafeAreaView,
   Pressable,
-  Alert,
   KeyboardAvoidingView,
   RefreshControl,
   Platform,
   Modal,
+  Button,
 } from 'react-native';
 import DatePicker from 'react-native-date-picker';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import API_BASE_URL from '../../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
-import {useFocusEffect} from '@react-navigation/native';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import {ActivityIndicator} from 'react-native-paper';
 
-const QgOptions = ['Organic', 'Standard'];
 const CtOptions = ['Organic', 'Hydroponic', 'Greenhouse'];
 const categoryOption = ['Vegetable', 'Dairy', 'Fruit'];
 
@@ -40,7 +38,6 @@ const Product = ({navigation}) => {
   const [dateOpen, setDateOpen] = useState(false);
   const [dateError, setDateError] = useState('');
   const [userId, setUserId] = useState('');
-  const [isloading, setIsloading] = useState(false);
   const [produceList, setProduceList] = useState([]);
   const [visible, setVisible] = useState(false);
   const [isSelectedImage, setIsSelectedImage] = useState(false);
@@ -48,36 +45,49 @@ const Product = ({navigation}) => {
   const [search, setSearch] = useState('');
   const [searchRefresh, setSearchRefresh] = useState(false);
   const [searchError, setSearchError] = useState('');
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [limit, setLimit] = useState(10);
 
   useEffect(() => {
-    fetchId();
-    fetchToken();
-  }, []);
+    console.log(
+      '------------------------- Produce render ---------------------',
+    );
+    if (hasMore) {
+      productList();
+    }
+  }, [page, hasMore]);
 
-  const fetchProduceList = async token => {
-    setIsloading(true);
+  const fetchProduceList = useCallback(async () => {
+    if (!hasMore) return;
+
+    const token = await AsyncStorage.getItem('userToken');
+    const id = await AsyncStorage.getItem('userId');
     try {
-      const response = await axios.get(`${API_BASE_URL}api/getProduces`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
+      const response = await axios.get(
+        `${API_BASE_URL}api/getPaginatedProduce/${page}/${limit}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         },
-      });
-      setProduceList(response.data);
+      );
+      setUserToken(token);
+      setUserId(id);
+      setHasMore(!response.data.last);
+      return response.data.content || [];
     } catch (error) {
       console.log('Error fetching data:', error);
     } finally {
-      setIsloading(false);
+      setLoading(false);
     }
-  };
+  });
 
-  const fetchId = async () => {
-    try {
-      const id = await AsyncStorage.getItem('userId');
-      if (id) {
-        setUserId(id);
-      }
-    } catch (error) {
-      console.error('Error fetching userId:', error);
+  const productList = async () => {
+    const response = await fetchProduceList();
+    if (response) {
+      setProduceList(prevData => [...prevData, ...response]); // Append only if valid data
     }
   };
 
@@ -100,15 +110,9 @@ const Product = ({navigation}) => {
     setCategoryDropDown(false);
   };
 
-  const fetchToken = async () => {
-    try {
-      const token = await AsyncStorage.getItem('userToken');
-      if (token) {
-        setUserToken(token);
-        fetchProduceList(token);
-      }
-    } catch (error) {
-      console.error('Error fetching token:', error);
+  const loadMore = () => {
+    if (hasMore) {
+      setPage(prevPage => prevPage + 1);
     }
   };
 
@@ -226,39 +230,55 @@ const Product = ({navigation}) => {
     setImagePreviewURI('');
   };
 
-  const renderProductItem = ({item}) => (
-    <TouchableOpacity
-      style={styles.productItem}
-      onPress={() => navigation.navigate('ProductDetail', {product: item})}>
-      <Image source={{uri: item.image}} style={styles.productImage} />
-      <View style={styles.productDetails}>
-        <Text style={styles.productName}>{item.name}</Text>
-        <Text style={styles.productPrice}>
-          Nu. {item.pricePerUnit} per unit
-        </Text>
-        <View style={styles.availabilityContainer}>
-          <View
-            style={[
-              styles.availabilityIndicator,
-              {
-                backgroundColor: item.available ? '#4CAF50' : '#FF9800',
-              },
-            ]}
+  const renderProductItem = useCallback(
+    ({item}) => (
+      <TouchableOpacity
+        style={styles.productItem}
+        onPress={() => navigation.navigate('ProductDetail', {product: item})}>
+        {item.url?.length === 0 ? (
+          <Image
+            style={styles.productImage}
+            source={{
+              uri: 'https://archive.org/download/placeholder-image//placeholder-image.jpg',
+            }}
           />
-          <Text style={styles.productAvailability}>
-            {item.available ? 'Available' : 'Out of Stock'}
+        ) : (
+          <Image source={{uri: item.url?.[0]}} style={styles.productImage} />
+        )}
+
+        <View style={styles.productDetails}>
+          <Text style={styles.productName}>{item.name}</Text>
+          <Text style={styles.productPrice}>
+            Nu. {item.pricePerUnit} per unit
           </Text>
+          <View style={styles.availabilityContainer}>
+            <View
+              style={[
+                styles.availabilityIndicator,
+                {
+                  backgroundColor: item.available ? '#4CAF50' : '#FF9800',
+                },
+              ]}
+            />
+            <Text style={styles.productAvailability}>
+              {item.available ? 'Available' : 'Out of Stock'}
+            </Text>
+          </View>
         </View>
-      </View>
-      <Icon name="chevron-right" size={24} color="#1a75ff" />
-    </TouchableOpacity>
+        <Icon name="chevron-right" size={24} color="#1a75ff" />
+      </TouchableOpacity>
+    ),
+    [],
   );
 
   const setRefresh = async () => {
     try {
       setRefreshing(true);
-      const token = await AsyncStorage.getItem('userToken');
-      await fetchProduceList(token);
+      setPage(0);
+      setHasMore(true);
+      console.log('Has more inside set Refresh @@@' + hasMore);
+      setProduceList([]);
+      await productList();
     } catch (error) {
       console.log(error);
     } finally {
@@ -276,27 +296,40 @@ const Product = ({navigation}) => {
     console.log('Empty press @@@= ' + search);
     setSearchRefresh(true);
 
-    if (search === '') {
-      fetchProduceList(userToken);
-      setSearchRefresh(false);
-      setSearchError('');
-    } else {
-      console.log('Inside else inside not null ');
-      const response = await axios.get(
-        `${API_BASE_URL}api/serchProduce/${search}/0/10`,
-        {headers: {Authorization: `Bearer ${userToken}`}},
-      );
-      console.log('Response data @@@ = ' + response.data);
-      if (response.status === 204) {
-        console.log('There are no search results');
-        setSearchRefresh(false);
+    try {
+      if (search.trim() === '') {
         setProduceList([]);
-        setSearchError('No result found for this keyword!');
-      } else {
-        setProduceList(response.data);
+        setPage(0);
+        setHasMore(true);
+        console.log('Has more in search when empty @@@ ' + hasMore);
+        await productList();
+        console.log('Produce list lenght @@@ ' + produceList.length);
         setSearchRefresh(false);
         setSearchError('');
+      } else {
+        setLimit(100);
+        setHasMore(false);
+        const response = await axios.get(
+          `${API_BASE_URL}api/serchProduce/${search}/${page}/${limit}`,
+          {headers: {Authorization: `Bearer ${userToken}`}},
+        );
+        console.log('Response data @@@ = ' + response.data);
+        if (response.status === 204) {
+          console.log('There are no search results');
+          setSearchRefresh(false);
+          setProduceList([]);
+          setSearchError('No result found for this keyword!');
+        } else {
+          setProduceList(response.data || []);
+          setSearchRefresh(false);
+          setSearchError('');
+        }
       }
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setHasMore(false);
+      setLimit(10);
     }
   };
 
@@ -307,23 +340,33 @@ const Product = ({navigation}) => {
         style={{flex: 1}}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Farmers Market</Text>
+          <Text style={styles.headerTitle}>Products available</Text>
         </View>
 
         {/* Search Bar */}
         <View style={styles.searchBar}>
-          <TextInput
-            value={search}
-            onChangeText={text => {
-              setSearch(text);
-              if (text.trim === '') {
-                fetchProduceList(userToken);
-              }
-            }}
-            style={styles.searchInput}
-            placeholder="Search products..."
-            placeholderTextColor="#999"
-          />
+          <View style={styles.searchClose}>
+            <TextInput
+              value={search}
+              onChangeText={text => {
+                setSearch(text);
+                if (text.trim === '') {
+                  fetchProduceList(userToken);
+                }
+              }}
+              style={styles.searchInput}
+              placeholder="Search products..."
+              placeholderTextColor="#999"
+            />
+            <Pressable onPress={() => setSearch('')}>
+              <Icon
+                name="close"
+                size={20}
+                color="#808080"
+                style={{padding: 5}}
+              />
+            </Pressable>
+          </View>
           <Pressable onPress={searchProduct} style={{padding: 10}}>
             <Icon name="search" size={20} color="#999" />
           </Pressable>
@@ -341,8 +384,15 @@ const Product = ({navigation}) => {
           <FlatList
             data={produceList}
             renderItem={renderProductItem}
-            keyExtractor={item => item.id}
-            contentContainerStyle={styles.productList}
+            keyExtractor={item => item.id.toString()}
+            initialNumToRender={10} // Render only 10 items initially
+            maxToRenderPerBatch={10} // Render 10 items per batch
+            windowSize={5} // Reduce the window size for better performance
+            onEndReached={loadMore}
+            onEndReachedThreshold={0.5}
+            // ListFooterComponent={
+            //   loading ? <ActivityIndicator size="large" color="blue" /> : null
+            // }
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={setRefresh} />
             }
@@ -615,7 +665,7 @@ const Product = ({navigation}) => {
         {/* ************************************************************  */}
         <Modal
           visible={visible}
-          transparent={true} // Make the modal background transparent
+          transparent={true}
           animationType="slide" // Add slide animation
           onRequestClose={() => setVisible(false)}>
           <View style={styles.modalContainer}>
@@ -702,14 +752,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
   },
   header: {
-    padding: 16,
-    backgroundColor: '#1a75ff',
+    paddingTop: 16,
+    marginTop: 10,
     alignItems: 'center',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFF',
+    color: '#666666',
   },
   searchBar: {
     flexDirection: 'row',
@@ -719,6 +769,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     borderRadius: 8,
     elevation: 2,
+  },
+  searchClose: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '80%',
+    marginRight: 20,
   },
   searchInput: {
     flex: 1,

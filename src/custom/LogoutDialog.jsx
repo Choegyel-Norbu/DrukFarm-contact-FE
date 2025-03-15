@@ -20,7 +20,7 @@ const LogoutDialog = ({visible, onDismiss, onConfirm}) => {
           <Card.Title
             title="Confirm Logout"
             titleStyle={styles.title}
-            left={props => <IconButton {...props} icon="logout" />}
+            left={props => <IconButton {...props} icon="logout" size={30} />}
           />
           <Card.Content>
             <Text style={styles.message}>
@@ -32,10 +32,13 @@ const LogoutDialog = ({visible, onDismiss, onConfirm}) => {
               mode="contained"
               onPress={onConfirm}
               style={styles.logoutButton}>
-              Yes, Logout
+              <Text style={{color: 'blue'}}>Logout</Text>
             </Button>
-            <Button mode="text" onPress={onDismiss} style={styles.cancelButton}>
-              Cancel
+            <Button
+              mode="contained"
+              onPress={onDismiss}
+              style={styles.cancelButton}>
+              <Text style={{color: 'blue'}}>Cancel</Text>
             </Button>
           </Card.Actions>
         </Card>
@@ -53,15 +56,16 @@ const styles = StyleSheet.create({
   card: {
     width: 300,
     borderRadius: 15,
-    backgroundColor: '#f2f2f2',
+    backgroundColor: '#fff',
     paddingVertical: 20,
     paddingHorizontal: 10,
-    elevation: 5,
+    // elevation: 5,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: 800,
     color: '#333333',
+    textAlign: 'justify',
   },
   message: {
     fontSize: 14,
@@ -70,14 +74,14 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   actions: {
-    justifyContent: 'space-between',
-    marginTop: 15,
+    justifyContent: 'flex-start',
+    padding: 0,
   },
   logoutButton: {
-    backgroundColor: '#cc5200',
+    backgroundColor: '#fff',
   },
   cancelButton: {
-    color: '#FFFFFF',
+    backgroundColor: '#fff',
   },
 });
 
