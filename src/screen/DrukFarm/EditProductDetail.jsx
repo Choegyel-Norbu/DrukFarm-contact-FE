@@ -14,13 +14,12 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import API_BASE_URL from '../../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {AuthContext} from '../../custom/AuthContext';
-import Toast from 'react-native-toast-message';
 
 const {width} = Dimensions.get('window');
 
-const ProductDetail = ({route, navigation}) => {
+const EditProductDetail = ({route, navigation}) => {
+  const {roles} = useContext(AuthContext);
   const {product} = route.params;
-  const {flag} = route.params;
   const [more, setMore] = useState(false);
   const [details, setDetails] = useState({});
   const [userId, setUserId] = useState('');
@@ -35,6 +34,8 @@ const ProductDetail = ({route, navigation}) => {
       setUserId(id);
       const userToken = await AsyncStorage.getItem('userToken');
       setToken(userToken);
+      console.log('user id inside first effect @@@ ' + userId);
+      console.log('token inside first effect @@@ ' + token);
     };
     getUser();
   }, []);
@@ -49,13 +50,14 @@ const ProductDetail = ({route, navigation}) => {
       try {
         console.log('Inside try;');
         const {data} = await axios.get(
-          `${API_BASE_URL}api/getProdDetalFarmerDetail/${product.id}`,
+          `${API_BASE_URL}api/getProdDetalFarmerDetail/${userId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
             },
           },
         );
+        console.log('Response ' + data);
         setDetails(data);
       } catch (error) {
         console.log(error);
@@ -65,45 +67,11 @@ const ProductDetail = ({route, navigation}) => {
     fetchFarmerDetails();
   }, [more]);
 
-  const addToCart = async () => {
-    let quantity = 1;
-    console.log('User Token inside cart@@@ ' + token);
-    try {
-      const response = await axios.post(
-        `${API_BASE_URL}api/addToCart/${userId}/${product.id}/${quantity}`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-      if (response.data === 'Added to cart') {
-        Toast.show({
-          type: 'success',
-          text1: 'Successfully added to cart',
-          position: 'top',
-          visibilityTime: 3000,
-        });
-      } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Failed adding to cart!',
-          position: 'top',
-          visibilityTime: 3000,
-        });
-      }
-      console.log('Response cart @@@ ' + response.data);
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
   return (
     <ScrollView style={styles.container}>
       {/* Product Image */}
       <View style={styles.imageContainer}>
-        {product.url?.length !== 0 ? (
+        {product.url.length !== 0 ? (
           <Image
             source={{
               uri: product.url[0],
@@ -141,25 +109,24 @@ const ProductDetail = ({route, navigation}) => {
                 styles.statusText,
                 {color: getStatusColor(product.status)},
               ]}>
-              {product.status}
+              Status:
+              {status}
             </Text>
           </View>
         </View>
 
         {/* More Details Section */}
         <View style={styles.moreSection}>
-          {!flag && (
-            <Pressable onPress={() => setMore(!more)} style={styles.moreButton}>
-              <Text style={styles.moreButtonText}>
-                {more ? 'Hide Details' : 'View More Details'}
-              </Text>
-              <Icon
-                name={more ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
-                size={24}
-                color="#666666"
-              />
-            </Pressable>
-          )}
+          <Pressable onPress={() => setMore(!more)} style={styles.moreButton}>
+            <Text style={styles.moreButtonText}>
+              {more ? 'Hide Details' : 'View More Details'}
+            </Text>
+            <Icon
+              name={more ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+              size={24}
+              color="#666666"
+            />
+          </Pressable>
 
           {more && (
             <View style={styles.moreDetail}>
@@ -169,14 +136,9 @@ const ProductDetail = ({route, navigation}) => {
               </View>
 
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Farm name:</Text>
+                <Text style={styles.detailLabel}>Farm Location:</Text>
                 <Text style={styles.detailValue}>{details.farmName}</Text>
               </View>
-
-              {/* <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Farm Location:</Text>
-                <Text style={styles.detailValue}>{details.}</Text>
-              </View> */}
 
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Farm size:</Text>
@@ -195,30 +157,27 @@ const ProductDetail = ({route, navigation}) => {
 
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Delivery:</Text>
-                <Text style={styles.detailValue}>
-                  {details.delivery ? details.delivery : '-'}
-                </Text>
+                <Text style={styles.detailValue}>{details.delivery}</Text>
               </View>
             </View>
           )}
         </View>
 
         {/* Add to Cart Button */}
-        {flag ? (
-          <TouchableOpacity
-            style={styles.addToCartButton}
-            onPress={() =>
-              navigation.navigate('ProduceEdit', {editProduct: product})
-            }>
-            <Text style={styles.addToCartButtonText}>Edit items</Text>
-            <Icon name="edit" size={20} color="#fff" />
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity style={styles.addToCartButton} onPress={addToCart}>
+        <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+          <TouchableOpacity style={styles.addToCartButton}>
             <Text style={styles.addToCartButtonText}>Add to Cart</Text>
             <Icon name="shopping-cart" size={20} color="#fff" />
           </TouchableOpacity>
-        )}
+
+          {roles.includes('FARMER') && (
+            <TouchableOpacity
+              style={[styles.addToCartButton, {backgroundColor: '#FF5722'}]}>
+              <Text style={styles.addToCartButtonText}>Edit</Text>
+              <Icon name="edit" size={20} color="#fff" />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     </ScrollView>
   );
@@ -349,4 +308,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ProductDetail;
+export default EditProductDetail;

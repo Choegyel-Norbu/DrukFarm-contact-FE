@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Alert,
   KeyboardAvoidingView,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import React, {useEffect, useState, useCallback, useContext} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -17,12 +19,12 @@ import {ScrollView} from 'react-native-gesture-handler';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import {AuthContext} from '../../custom/AuthContext';
 import Toast from 'react-native-toast-message';
+import {useFocusEffect} from '@react-navigation/native';
 
 export default function Detail() {
-  const {email} = useContext(AuthContext);
+  const {email, roles} = useContext(AuthContext);
   const [token, setToken] = useState('');
-  const [fetchRoles, setFetchRoles] = useState([]);
-  const [count, setCount] = useState(0);
+  const [userId, setUserId] = useState('');
   const [farmerSave, setFarmerSave] = useState(false);
   const [transporterSave, setTransporterSave] = useState(false);
   const [buyerSave, setBuyerSave] = useState(false);
@@ -41,7 +43,7 @@ export default function Detail() {
     errorVehicalType: false,
     errorVehicalCapacity: false,
     errorExperienceYear: false,
-    errorBusinessType: false, // New
+    errorBusinessType: false,
     errorBusinessLocation: false,
   });
 
@@ -135,45 +137,28 @@ export default function Detail() {
   useEffect(() => {
     const fetchToken = async () => {
       const userToken = await AsyncStorage.getItem('userToken');
+      const id = await AsyncStorage.getItem('userId');
       setToken(userToken);
+      setUserId(id);
     };
     fetchToken();
   }, [token]);
 
-  const fetchUserRoles = useCallback(async () => {
-    try {
-      const token = await AsyncStorage.getItem('userToken');
-      const id = await AsyncStorage.getItem('userId');
+  useFocusEffect(
+    useCallback(() => {
+      console.log(
+        '---------------- Render focusEffect details ---------------',
+      );
+      console.log('User roles @@@ ' + roles);
 
-      console.log('Fetching User Roles...');
-      console.log('Token:', token);
-      console.log('User ID:', id);
-      console.log('Count:', count);
-      console.log(`Fetching roles from: ${API_BASE_URL}api/getRoles/${id}`);
-
-      const response = await axios.get(`${API_BASE_URL}api/getRoles/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const roleNames = response.data.map(role => role.name);
-      setFetchRoles(roleNames);
-      console.log('User Roles:', roleNames);
-    } catch (error) {
-      console.error('Error fetching roles:', error);
-    }
-  }, [count]);
-
-  useEffect(() => {
-    fetchUserRoles();
-  }, [fetchUserRoles]);
+      return () => {
+        console.log('Cleanup function executed on unmount or screen unfocus');
+      };
+    }, [roles]), // Add dependencies if needed
+  );
 
   const handleFarmerSubmit = async () => {
-    console.log('Farmer Submit handle render --------------------------');
     if (!farmerValidate()) return;
-
-    // setFarmerSave(false);
 
     try {
       const response = await axios.post(
@@ -210,8 +195,6 @@ export default function Detail() {
   const handleTransporterSubmit = async () => {
     console.log('Transporter Submit handle render --------------------------');
     if (!transporterValidate()) return;
-
-    // setFarmerSave(false);
 
     try {
       const response = await axios.post(
@@ -289,143 +272,156 @@ export default function Detail() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'} // Use 'padding' for iOS, 'height' for Android
         keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0} // Adjust this value for iOS if needed
       >
-        <Text
-          style={{
-            fontSize: 16,
-            color: '#333',
-            fontWeight: '400',
-            lineHeight: 24,
-            marginTop: 10,
-            marginBottom: 20,
-            textAlign: 'left',
-          }}>
-          Please provide the relevant details based on the role you have
-          selected: [{' '}
-          {fetchRoles.map((role, index) => (
-            <Text style={{color: 'blue', fontSize: 13}} key={index}>
-              {role}
-              {', '}
-            </Text>
-          ))}
-          {''}]
-        </Text>
-
+        {roles.length === 1 ? (
+          <>
+            <Text>You must select role:</Text>
+          </>
+        ) : (
+          <Text
+            style={{
+              fontSize: 16,
+              color: '#333',
+              fontWeight: '400',
+              lineHeight: 24,
+              marginTop: 10,
+              marginBottom: 20,
+              textAlign: 'left',
+            }}>
+            Please provide the relevant details based on the role you have
+            selected: [{' '}
+            {roles.map((role, index) => (
+              <Text style={{color: 'blue', fontSize: 13}} key={index}>
+                {role}
+                {', '}
+              </Text>
+            ))}
+            {''}]
+          </Text>
+        )}
         {/* ************************* Farmer Details ************************* */}
         <ScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.scrollContainer} // Ensure the ScrollView expands
         >
-          {fetchRoles.includes('FARMER') && (
-            <>
-              <View style={{}}>
-                <Text style={styles.title}>Enter farmer details:</Text>
-                <View style={styles.detailInputContainer}>
-                  <View
-                    style={[
-                      styles.detailInputInnerContainer,
-                      styles.topBorder,
-                      error.errorFarmName && {
-                        borderBottomColor: 'red',
-                        borderBottomWidth: 1,
-                      },
-                    ]}>
-                    <View style={styles.text}>
-                      <Text>
-                        Farm name: <Text style={{color: 'red'}}>*</Text>
-                      </Text>
+          {roles.includes('FARMER') &&
+            (console.log('Rendering Farmer Details'), // Add this log
+            (
+              <>
+                <View style={{}}>
+                  <Text style={styles.title}>Farmer details:</Text>
+                  <View style={styles.detailInputContainer}>
+                    <View
+                      style={[
+                        styles.detailInputInnerContainer,
+                        styles.topBorder,
+                        error.errorFarmName && {
+                          borderBottomColor: 'red',
+                          borderBottomWidth: 1,
+                        },
+                      ]}>
+                      <View style={styles.text}>
+                        <Text>
+                          Farm name: <Text style={{color: 'red'}}>*</Text>
+                        </Text>
+                      </View>
+                      <View style={styles.inputs}>
+                        <TextInput
+                          value={farmerDetails.farmName}
+                          onChangeText={text => {
+                            setFarmerDetails({
+                              ...farmerDetails,
+                              farmName: text,
+                            });
+                            setFarmerSave(true);
+                          }}
+                          placeholder="Enter farm name"
+                          style={styles.input}
+                        />
+                      </View>
                     </View>
-                    <View style={styles.inputs}>
-                      <TextInput
-                        value={farmerDetails.farmName}
-                        onChangeText={text => {
-                          setFarmerDetails({...farmerDetails, farmName: text});
-                          setFarmerSave(true);
-                        }}
-                        placeholder="Enter farm name"
-                        style={styles.input}
-                      />
-                    </View>
-                  </View>
-                  <View
-                    style={[
-                      styles.detailInputInnerContainer,
-                      error.errorFarmSize && {
-                        borderBottomColor: 'red',
-                        borderBottomWidth: 1,
-                      },
-                    ]}>
-                    <View style={styles.text}>
-                      <Text>
-                        Farm size: <Text style={{color: 'red'}}>*</Text>
-                      </Text>
-                    </View>
-                    <View style={styles.inputs}>
-                      <TextInput
-                        value={farmerDetails.farmSize}
-                        onChangeText={text => {
-                          setFarmerDetails({...farmerDetails, farmSize: text});
+                    <View
+                      style={[
+                        styles.detailInputInnerContainer,
+                        error.errorFarmSize && {
+                          borderBottomColor: 'red',
+                          borderBottomWidth: 1,
+                        },
+                      ]}>
+                      <View style={styles.text}>
+                        <Text>
+                          Farm size: <Text style={{color: 'red'}}>*</Text>
+                        </Text>
+                      </View>
+                      <View style={styles.inputs}>
+                        <TextInput
+                          value={farmerDetails.farmSize}
+                          onChangeText={text => {
+                            setFarmerDetails({
+                              ...farmerDetails,
+                              farmSize: text,
+                            });
 
-                          setFarmerSave(true);
-                        }}
-                        placeholder="(e.g., large, medium, small)"
-                      />
+                            setFarmerSave(true);
+                          }}
+                          placeholder="(e.g., large, medium, small)"
+                        />
+                      </View>
+                    </View>
+                    <View
+                      style={[
+                        styles.detailInputInnerContainer,
+                        styles.bottomBorder,
+                        error.errorLocation && {
+                          borderBottomColor: 'red',
+                          borderBottomWidth: 1,
+                        },
+                      ]}>
+                      <View style={styles.text}>
+                        <Text>
+                          Farm location: <Text style={{color: 'red'}}>*</Text>
+                        </Text>
+                      </View>
+                      <View style={styles.inputs}>
+                        <TextInput
+                          value={farmerDetails.farmLocation}
+                          onChangeText={text => {
+                            setFarmerDetails({
+                              ...farmerDetails,
+                              farmLocation: text,
+                            });
+                            setFarmerSave(true);
+                          }}
+                          placeholder="Enter your farm location"
+                        />
+                      </View>
                     </View>
                   </View>
-                  <View
-                    style={[
-                      styles.detailInputInnerContainer,
-                      styles.bottomBorder,
-                      error.errorLocation && {
-                        borderBottomColor: 'red',
-                        borderBottomWidth: 1,
-                      },
-                    ]}>
-                    <View style={styles.text}>
-                      <Text>
-                        Farm location: <Text style={{color: 'red'}}>*</Text>
-                      </Text>
-                    </View>
-                    <View style={styles.inputs}>
-                      <TextInput
-                        value={farmerDetails.farmLocation}
-                        onChangeText={text => {
-                          setFarmerDetails({
-                            ...farmerDetails,
-                            farmLocation: text,
-                          });
-                          setFarmerSave(true);
-                        }}
-                        placeholder="Enter your farm location"
-                      />
-                    </View>
-                  </View>
+                  {farmerSave && (
+                    <TouchableOpacity
+                      onPress={handleFarmerSubmit}
+                      style={{
+                        padding: 5,
+                        backgroundColor: '#3399ff',
+                        borderRadius: 20,
+                        flexDirection: 'row',
+                        justifyContent: 'center',
+                        width: '30%',
+                        marginBottom: '1%',
+                      }}>
+                      <Icon name="save" size={20} color="#fff" />
+                      <Text style={{color: '#fff'}}>Save</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
-                {farmerSave && (
-                  <TouchableOpacity
-                    onPress={handleFarmerSubmit}
-                    style={{
-                      padding: 5,
-                      backgroundColor: '#3399ff',
-                      borderRadius: 20,
-                      flexDirection: 'row',
-                      justifyContent: 'center',
-                      width: '30%',
-                      marginBottom: '1%',
-                    }}>
-                    <Icon name="save" size={20} color="#fff" />
-                    <Text style={{color: '#fff'}}>Save</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </>
-          )}
+              </>
+            ))}
 
           {/* ************************* Transporter Details ************************* */}
-          {fetchRoles.includes('TRANSPORTER') && (
+          {roles.includes('TRANSPORTER') && (
             <>
               <View>
-                <Text style={styles.title}>Enter transporter details:</Text>
+                <Text style={styles.title}>Transporter details:</Text>
                 <View style={styles.detailInputContainer}>
                   <View
                     style={[
@@ -533,10 +529,10 @@ export default function Detail() {
           )}
 
           {/* ************************* Buyer Details ************************* */}
-          {fetchRoles.includes('BUYER') && (
+          {roles.includes('BUYER') && (
             <>
               <View>
-                <Text style={styles.title}>Enter buyer details:</Text>
+                <Text style={styles.title}>Buyer details:</Text>
                 <View style={styles.detailInputContainer}>
                   <View
                     style={[
@@ -659,6 +655,8 @@ export default function Detail() {
 //     }
 //   };
 
+const {width, height} = Dimensions.get('window');
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -704,5 +702,28 @@ const styles = StyleSheet.create({
   },
   input: {
     borderRadius: 30,
+  },
+  roleModalContainer: {
+    position: 'absolute',
+    top: '13%',
+    left: '5%',
+    backgroundColor: '#fff',
+  },
+  roleContent: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  rolePreviewContainer: {
+    position: 'absolute',
+    flexDirection: 'row',
+    top: '9%',
+    right: 0,
+    padding: 5,
+  },
+  rolePreviewText: {
+    borderWidth: 0.5,
+    borderRadius: 5,
+    padding: 10,
+    marginHorizontal: 3,
   },
 });

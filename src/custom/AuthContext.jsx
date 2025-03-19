@@ -1,8 +1,9 @@
-import React, {createContext, useEffect, useState} from 'react';
+import React, {createContext, useCallback, useState} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {ActivityIndicator, StyleSheet, View} from 'react-native';
+import {StyleSheet, View} from 'react-native';
 import LottieView from 'lottie-react-native';
-import EncryptedStorage from 'react-native-encrypted-storage';
+import API_BASE_URL from '../config';
+import axios from 'axios';
 
 export const AuthContext = createContext();
 
@@ -11,6 +12,13 @@ export const AuthProvider = ({children}) => {
   const [userName, setUserName] = useState('');
   const [email, setEmail] = useState('');
   const [user, setUser] = useState(null);
+  const [roles, setRoles] = useState([]);
+
+  const addRolesContext = newRoles => {
+    setRoles(prevRoles => [...prevRoles, ...newRoles]); // Merge arrays
+
+    console.log('Triggered role context ' + roles);
+  };
 
   const logIn = async (token, userData) => {
     setIsLoading(true);
@@ -18,7 +26,7 @@ export const AuthProvider = ({children}) => {
       await AsyncStorage.setItem('userToken', token);
       await AsyncStorage.setItem('userId', userData.id.toString());
       await AsyncStorage.setItem('userRegistered', JSON.stringify(true));
-      setIsLoading(false);
+      await fetchUserRoles(token, userData.id.toString());
       setUserName(userData.userName);
       setEmail(userData.email);
       setUser(token);
@@ -28,6 +36,22 @@ export const AuthProvider = ({children}) => {
       setIsLoading(false);
     }
   };
+
+  const fetchUserRoles = useCallback(async (token, id) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}api/getRoles/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const roleNames = response.data.map(role => role.name);
+      setRoles(roleNames);
+      console.log('User Roles:', roleNames);
+    } catch (error) {
+      console.error('Error fetching roles:', error);
+    }
+  }, []);
 
   const logOut = () => {
     setUser(null);
@@ -42,6 +66,8 @@ export const AuthProvider = ({children}) => {
         userName,
         email,
         user,
+        roles,
+        addRolesContext,
       }}>
       {isLoading ? (
         <View style={styles.loaderContainer}>

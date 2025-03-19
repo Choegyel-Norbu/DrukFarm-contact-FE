@@ -9,9 +9,9 @@ import {
   SafeAreaView,
   StyleSheet,
   Text,
-  TextInput,
-  TouchableOpacity,
+  Dimensions,
   View,
+  TouchableOpacity,
 } from 'react-native';
 import React, {useCallback, useContext, useEffect, useState} from 'react';
 import {ScrollView} from 'react-native-gesture-handler';
@@ -25,9 +25,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import ImageCropPicker from 'react-native-image-crop-picker';
 import LogoutDialog from '../../custom/LogoutDialog';
+import {useFocusEffect} from '@react-navigation/native';
 
 export default function ProfileScr({navigation}) {
-  const {email, userName, logOut} = useContext(AuthContext);
+  const {email, userName, logOut, roles, addRolesContext} =
+    useContext(AuthContext);
   const [userId, setUserId] = useState('');
   const [selectedImage, setSelectedImage] = useState('');
   const [userToken, setUserToken] = useState('');
@@ -36,21 +38,80 @@ export default function ProfileScr({navigation}) {
   const [dp, setDp] = useState('');
   const [dpModal, setDpModal] = useState(false);
   const [deleteModal, setDeleteModal] = useState(false);
-  const [roles, setRoles] = useState([]);
+  const [addRoles, setAddRoles] = useState([]);
   const [fetchRoles, setFetchRoles] = useState([]);
   const [roleModal, setRoleModal] = useState(false);
   const [hideAddRole, setHideAddRole] = useState(false);
   const [logOutVisible, setLogOutVisible] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
+  const [productCount, setProductCount] = useState(0);
+  const [refresh, setRefresh] = useState(false); // Force UI update
 
   useEffect(() => {
     console.log('----------------------- New Render -------------------');
     fetchToken();
   }, []);
 
+  const fetchCartCount = async () => {
+    console.log(
+      '----------------------- New Render useEffect cartcount-------------------',
+    );
+    console.log('User roles initially ' + roles);
+    console.log('Cart count ' + cartCount);
+    console.log('Roles for deleted and zero ' + roles);
+
+    const token = await AsyncStorage.getItem('userToken');
+    const id = await AsyncStorage.getItem('userId');
+
+    try {
+      const response = await axios.get(`${API_BASE_URL}api/cartCount/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setCartCount(response.data);
+      setRefresh(prev => !prev); // force a re-render
+
+      console.log('Response cart count ' + response.data);
+    } catch (error) {
+      console.log('Error fetching cart count:', error);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchCartCount();
+    }, []),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const fetchProductCount = async () => {
+        const token = await AsyncStorage.getItem('userToken');
+        const id = await AsyncStorage.getItem('userId');
+        try {
+          const response = await axios.get(
+            `${API_BASE_URL}api/productCount/${id}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            },
+          );
+          setProductCount(response.data);
+        } catch (error) {
+          console.log('Error fetching cart count:', error);
+        }
+      };
+
+      fetchProductCount();
+    }, []),
+  );
+
   useEffect(() => {
     const backAction = () => {
-      navigation.navigate('Profile'); // Navigate to Profile screen on back press
-      return true; // Prevent default back action
+      navigation.navigate('Profile');
+      return true;
     };
 
     const backHandler = BackHandler.addEventListener(
@@ -61,26 +122,26 @@ export default function ProfileScr({navigation}) {
     return () => backHandler.remove(); // Cleanup event listener on unmount
   }, [navigation]);
 
-  useEffect(() => {
-    const fetchUserRoles = async () => {
-      const token = await AsyncStorage.getItem('userToken');
-      const id = await AsyncStorage.getItem('userId');
-      try {
-        const response = await axios.get(`${API_BASE_URL}api/getRoles/${id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const roleNames = response.data.map(role => role.name);
-        setFetchRoles(roleNames);
+  // useEffect(() => {
+  //   const fetchUserRoles = async () => {
+  //     const token = await AsyncStorage.getItem('userToken');
+  //     const id = await AsyncStorage.getItem('userId');
+  //     try {
+  //       const response = await axios.get(`${API_BASE_URL}api/getRoles/${id}`, {
+  //         headers: {
+  //           Authorization: `Bearer ${token}`,
+  //         },
+  //       });
+  //       const roleNames = response.data.map(role => role.name);
+  //       setFetchRoles(roleNames);
 
-        console.log(' User Roles fetched@@@ ' + fetchRoles);
-      } catch (error) {
-        console.log(error);
-      }
-    };
-    fetchUserRoles();
-  }, []);
+  //       console.log(' User Roles fetched@@@ ' + fetchRoles);
+  //     } catch (error) {
+  //       console.log(error);
+  //     }
+  //   };
+  //   fetchUserRoles();
+  // }, []);
 
   useEffect(() => {
     if (dp) {
@@ -283,7 +344,7 @@ export default function ProfileScr({navigation}) {
 
   const handleSelectedRoles = selectedRole => {
     console.log('You have selected @@@: ' + selectedRole);
-    setRoles((prevRoles = []) => {
+    setAddRoles((prevRoles = []) => {
       return prevRoles.includes(selectedRole)
         ? prevRoles.filter(role => role !== selectedRole)
         : [...prevRoles, selectedRole];
@@ -292,7 +353,7 @@ export default function ProfileScr({navigation}) {
 
   const handleSubmitRole = async () => {
     const roleData = {
-      requestRole: roles,
+      requestRole: addRoles,
     };
     try {
       const response = await axios.put(
@@ -304,6 +365,13 @@ export default function ProfileScr({navigation}) {
           },
         },
       );
+      console.log('Roles before submitting ' + roles);
+      if (response.data && response.data.responseRole) {
+        const updatedRoles = response.data.responseRole.map(role => role.name);
+        addRolesContext(updatedRoles);
+        setRefresh(prev => !prev);
+      }
+      console.log('Roles After submitting ' + roles);
       Toast.show({
         type: 'success',
         text1: 'Role added successfully',
@@ -360,18 +428,6 @@ export default function ProfileScr({navigation}) {
                 onDismiss={() => setLogOutVisible(false)}
                 onConfirm={handleLogout}
               />
-
-              {/* <TouchableOpacity
-                style={styles.logoutButton}
-                onPress={() => setLogOutVisible(true)}>
-                <Icon name="logout" size={22} color="white" />
-                <Text style={styles.logoutText}>Logout</Text>
-                <LogoutDialog
-                  visible={logOutVisible}
-                  onDismiss={() => setLogOutVisible(false)}
-                  onConfirm={handleLogout}
-                />
-              </TouchableOpacity> */}
             </View>
           </View>
           <View style={styles.headerMain}>
@@ -394,24 +450,58 @@ export default function ProfileScr({navigation}) {
                 </Text>
               </View>
               <View style={styles.profileStatus}>
-                <View style={styles.details}>
-                  <Text style={styles.detailCount}>23</Text>
-                  <Text style={styles.detailDesc}>Products</Text>
+                {roles.includes('FARMER') && (
+                  <Pressable
+                    onPress={() =>
+                      navigation.navigate('ProfileStack', {
+                        screen: 'ProductListed',
+                      })
+                    }>
+                    >
+                    <View style={styles.details}>
+                      <Text style={styles.detailCount}>{productCount}</Text>
+                      <Text style={styles.detailDesc}>Products</Text>
+                    </View>
+                  </Pressable>
+                )}
+
+                {roles.includes('BUYER') && (
+                  <Pressable
+                    style={styles.details}
+                    onPress={() =>
+                      navigation.navigate('ProfileStack', {screen: 'Cart'})
+                    }>
+                    <Text style={styles.detailCount}>{cartCount}</Text>
+                    <Text style={styles.detailDesc}>Cart</Text>
+                  </Pressable>
+                )}
+              </View>
+              <View style={styles.editContainer}>
+                <View style={styles.editContent}>
+                  <Icon
+                    name="task-alt"
+                    size={20}
+                    style={{marginHorizontal: 5}}
+                  />
+                  <TouchableOpacity
+                    onPress={() =>
+                      navigation.navigate('ProfileStack', {screen: 'Details'})
+                    }>
+                    <Text style={{fontWeight: 'bold'}}>
+                      Complete your profile
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-                <View style={styles.details}>
-                  <Text style={styles.detailCount}>6</Text>
-                  <Text style={styles.detailDesc}>Cart</Text>
+                <View style={styles.editContent}>
+                  <Icon name="edit" size={20} style={{marginHorizontal: 5}} />
+                  <TouchableOpacity>
+                    <Text style={{fontWeight: 'bold'}}>Edit profile</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             </View>
           </View>
         </View>
-        {/* <Pressable
-          style={{width: '100%'}}
-          onPress={() => navigation.navigate('Homestack', {screen: 'Details'})}>
-          <Button title="Complete your profile" />
-        </Pressable> */}
-
         <View style={styles.profileDetailContent}>
           <Text
             style={{
@@ -461,28 +551,8 @@ export default function ProfileScr({navigation}) {
               <Text style={styles.profileDetailItemText02}>+97517482648</Text>
             </View>
           </View>
-          <View style={styles.profileDetailItemContainer}>
-            <Icon
-              name="map"
-              size={24}
-              color="#66a3ff"
-              style={styles.profileDetailItemIcon}
-            />
-            <View>
-              <Text style={styles.profileDetailItemText01}>Location</Text>
-              <Text style={styles.profileDetailItemText02}>Wamrong, Moshi</Text>
-            </View>
-          </View>
         </View>
-
-        <Pressable
-          onPress={() =>
-            navigation.navigate('ProfileStack', {screen: 'Details'})
-          }>
-          <Text>Details </Text>
-        </Pressable>
-
-        {hideAddRole && (
+        {roles.length === 1 && roles.includes('USER') && (
           <>
             <View style={styles.profileContent}>
               <View
@@ -500,10 +570,10 @@ export default function ProfileScr({navigation}) {
                 </Pressable>
               </View>
             </View>
-            {roles.length !== 0 ? (
+            {addRoles.length !== 0 ? (
               <>
                 <View style={styles.rolePreviewContainer}>
-                  {roles.map(item => (
+                  {addRoles.map(item => (
                     <Text style={styles.rolePreviewText}>{item}</Text>
                   ))}
                 </View>
@@ -513,11 +583,15 @@ export default function ProfileScr({navigation}) {
                     flexDirection: 'row',
                     alignItems: 'center',
                     position: 'absolute',
-                    top: '54%',
+                    bottom: '12%',
                     right: '5%',
                   }}>
                   <Text
-                    style={{marginHorizontal: 5, color: 'blue', fontSize: 14}}>
+                    style={{
+                      marginHorizontal: 5,
+                      color: 'blue',
+                      fontSize: 14,
+                    }}>
                     Submit
                   </Text>
 
@@ -534,17 +608,17 @@ export default function ProfileScr({navigation}) {
             <View style={styles.roleModalContainer}>
               <Pressable
                 style={styles.roleContent}
-                onPress={() => handleSelectedRoles('Farmer')}>
+                onPress={() => handleSelectedRoles('FARMER')}>
                 <Text>Farmer</Text>
               </Pressable>
               <Pressable
                 style={styles.roleContent}
-                onPress={() => handleSelectedRoles('Buyer')}>
+                onPress={() => handleSelectedRoles('BUYER')}>
                 <Text>Buyer</Text>
               </Pressable>
               <Pressable
                 style={styles.roleContent}
-                onPress={() => handleSelectedRoles('Transporter')}>
+                onPress={() => handleSelectedRoles('TRANSPORTER')}>
                 <Text>Transporter</Text>
               </Pressable>
             </View>
@@ -632,6 +706,8 @@ export default function ProfileScr({navigation}) {
   );
 }
 
+const {width, height} = Dimensions.get('window');
+
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
@@ -639,7 +715,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   profileHeader: {
-    height: '40%',
+    height: height * 0.4,
     width: '100%',
     alignItems: 'center',
   },
@@ -659,8 +735,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderTopRightRadius: 20,
     borderTopLeftRadius: 20,
-    marginHorizontal: 10,
-    borderBottomWidth: 0.5,
+    // marginHorizontal: 10,
+    // borderBottomWidth: 0.5,
   },
   headerContent: {
     width: '100%',
@@ -820,7 +896,7 @@ const styles = StyleSheet.create({
   },
   roleModalContainer: {
     position: 'absolute',
-    top: '49%',
+    bottom: height * 0.08,
     left: '5%',
     backgroundColor: '#fff',
   },
@@ -831,7 +907,7 @@ const styles = StyleSheet.create({
   rolePreviewContainer: {
     position: 'absolute',
     flexDirection: 'row',
-    top: '48%',
+    bottom: '15%',
     right: '5%',
     padding: 5,
   },
@@ -842,12 +918,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 3,
   },
   profileDetailContent: {
-    width: '90%',
+    width: width * 0.9,
     borderRadius: 10,
     borderWidth: 0.5,
+    paddingTop: height * 0.02,
     borderColor: '#cccccc',
-    marginTop: '4%',
-    padding: '2%',
   },
   profileDetailItemContainer: {
     flexDirection: 'row',
@@ -882,5 +957,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#fff',
     marginLeft: 10,
+  },
+  editContainer: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-around',
+    marginVertical: '5%',
+  },
+  editContent: {
+    flexDirection: 'row',
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    backgroundColor: '#e6e6e6',
+    borderRadius: 10,
   },
 });

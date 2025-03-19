@@ -1,5 +1,5 @@
 import axios from 'axios';
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useContext, useEffect, useState} from 'react';
 import {
   StyleSheet,
   View,
@@ -23,11 +23,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import {ActivityIndicator} from 'react-native-paper';
+import {AuthContext} from '../../custom/AuthContext';
 
 const CtOptions = ['Organic', 'Hydroponic', 'Greenhouse'];
 const categoryOption = ['Vegetable', 'Dairy', 'Fruit'];
 
 const Product = ({navigation}) => {
+  const {roles} = useContext(AuthContext);
   const [modalVisibility, setModalVisibility] = useState(false);
   const [isCtDropDown, setIsCtDropDown] = useState(false);
   const [categoryDropDown, setCategoryDropDown] = useState(false);
@@ -385,14 +387,14 @@ const Product = ({navigation}) => {
             data={produceList}
             renderItem={renderProductItem}
             keyExtractor={item => item.id.toString()}
-            initialNumToRender={10} // Render only 10 items initially
+            initialNumToRender={10}
             maxToRenderPerBatch={10} // Render 10 items per batch
             windowSize={5} // Reduce the window size for better performance
             onEndReached={loadMore}
             onEndReachedThreshold={0.5}
-            // ListFooterComponent={
-            //   loading ? <ActivityIndicator size="large" color="blue" /> : null
-            // }
+            ListFooterComponent={
+              loading ? <ActivityIndicator size="large" color="blue" /> : null
+            }
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={setRefresh} />
             }
@@ -400,18 +402,20 @@ const Product = ({navigation}) => {
         )}
 
         {/* Floating Action Button (FAB) */}
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => setModalVisibility(true)}>
-          <Icon name="add" size={30} color="#FFF" />
-        </TouchableOpacity>
+        {roles.includes('FARMER') && (
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={() => setModalVisibility(true)}>
+            <Icon name="add" size={30} color="#FFF" />
+          </TouchableOpacity>
+        )}
 
         {/* Add Product Modal */}
         <Modal
           visible={modalVisibility}
           onModalHide={() => setModalVisibility(false)}
           transparent={true}
-          animationType="slide"
+          animationType="fade"
           onRequestClose={() => setModalVisibility(false)}>
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>

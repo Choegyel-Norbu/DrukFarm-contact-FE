@@ -6,12 +6,14 @@ import HomeScr from '../screen/DcHScrn/HomeScr';
 import PRdetails from '../screen/DcHScrn/PRdetails';
 import HRlisingScr from '../screen/DcHScrn/HRlisingScr';
 import ProfileScr from '../screen/DcHScrn/ProfileScr';
-import Request from '../screen/DcHScrn/Request';
 import Product from '../screen/DrukFarm/Product';
 import ProductDetail from '../screen/DrukFarm/ProductDetail';
 import Settings from '../screen/DrukFarm/Settings';
 import Detail from '../screen/DrukFarm/Detail';
 import {getFocusedRouteNameFromRoute} from '@react-navigation/native';
+import Cart from '../screen/DrukFarm/Cart';
+import ProductListed from '../screen/DrukFarm/ProductListed';
+import ProductEdit from '../screen/DrukFarm/ProductEdit';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -36,7 +38,7 @@ const HomeStack = () => {
 const ProductStack = ({navigation, route}) => {
   useEffect(() => {
     const routeName = getFocusedRouteNameFromRoute(route);
-    if (routeName === 'ProductDetail') {
+    if (routeName === 'ProductDetail' || 'ProduceEdit') {
       navigation.getParent()?.setOptions({tabBarStyle: {display: 'none'}});
     } else {
       navigation.getParent()?.setOptions({tabBarStyle: {display: 'flex'}});
@@ -55,11 +57,19 @@ const ProductStack = ({navigation, route}) => {
         component={ProductDetail}
         options={{headerShown: false}}
       />
+      <Stack.Screen
+        name="ProduceEdit"
+        component={ProductEdit}
+        options={{
+          headerShown: true,
+          title: 'Edit Product',
+          headerTitleAlign: 'center',
+        }}
+      />
     </Stack.Navigator>
   );
 };
 
-// Profile Stack (Hide tab bar when inside Details)
 const ProfileStack = ({navigation, route}) => {
   useEffect(() => {
     const routeName = getFocusedRouteNameFromRoute(route);
@@ -77,6 +87,27 @@ const ProfileStack = ({navigation, route}) => {
         name="Details"
         component={Detail}
         options={{headerShown: true}}
+      />
+      <Stack.Screen
+        name="Cart"
+        component={Cart}
+        options={{headerShown: true}}
+      />
+
+      <Stack.Screen
+        name="ProductListed"
+        component={ProductListed}
+        options={{
+          headerShown: true,
+          title: 'Products',
+          headerTitleAlign: 'center',
+        }}
+      />
+
+      <Stack.Screen
+        name="ProductStack"
+        component={ProductStack}
+        options={{headerShown: false}}
       />
     </Stack.Navigator>
   );
@@ -112,16 +143,6 @@ export default function TabNavigation() {
       />
 
       <Tab.Screen
-        name="Request"
-        component={Request}
-        options={{
-          tabBarIcon: ({color}) => (
-            <Icon name="request-page" size={28} color={color} />
-          ),
-        }}
-      />
-
-      <Tab.Screen
         name="ProfileStack"
         component={ProfileStack}
         options={{
@@ -134,10 +155,13 @@ export default function TabNavigation() {
   );
 }
 
-// Utility function to determine tab bar visibility
 const getTabBarVisibility = route => {
   const routeName = getFocusedRouteNameFromRoute(route);
-  return routeName === 'Details' || routeName === 'ProductDetail'
+  return routeName === 'Details' ||
+    routeName === 'ProductDetail' ||
+    routeName === 'Cart' ||
+    routeName === 'ProductListed' ||
+    routeName === 'ProduceEdit'
     ? {display: 'none'}
     : {display: 'flex'};
 };

@@ -118,23 +118,18 @@ export default function Signup({navigation}) {
   const handleFacebookLogin = () => {
     Alert.alert('This feature is not available currently!');
   };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.signup}>Sign Up</Text>
-        </View>
+      <View style={styles.header}>
+        <Text style={styles.signup}>Sign Up</Text>
+      </View>
+      <View style={{flex: 4}}>
         <ScrollView
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          style={{
-            borderWidth: 0.5,
-            margin: 3,
-            paddingVertical: 10,
-            height: 'auto',
-          }}>
+          showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
             <View style={styles.errorInputStyle}>
               <CustomInput
@@ -195,41 +190,18 @@ export default function Signup({navigation}) {
                 <Text style={styles.errorText}>{errors.confirmPassword}</Text>
               ) : null}
             </View>
-
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                padding: 5,
-              }}>
-              <CheckBox />
-              <Text>Rememer Me</Text>
-            </View>
-            <View
-              style={{
-                width: '100%',
-                alignItems: 'center',
-                marginTop: 20,
-              }}>
-              <View>
-                <GoogleSocialButton onPress={handleGoogleLogin} />
-              </View>
-              <View>
-                <FacebookSocialButton onPress={handleFacebookLogin} />
-              </View>
-            </View>
           </View>
         </ScrollView>
-        <View style={styles.footer}>
-          <Pressable style={styles.register} onPress={handleUserRegister}>
-            <Text style={{color: '#fff'}}>Sign Up</Text>
+      </View>
+      <View style={styles.footer}>
+        <Pressable style={styles.register} onPress={handleUserRegister}>
+          <Text style={{color: '#fff'}}>Sign Up</Text>
+        </Pressable>
+        <View style={{flexDirection: 'row', marginTop: 5}}>
+          <Text>Already have an account? </Text>
+          <Pressable onPress={() => navigation.navigate('Login')}>
+            <Text style={{color: '#00b8e6', fontWeight: 400}}>Sign In</Text>
           </Pressable>
-          <View style={{flexDirection: 'row', marginTop: 5}}>
-            <Text>Already have an account? </Text>
-            <Pressable onPress={() => navigation.navigate('Login')}>
-              <Text style={{color: '#00b8e6', fontWeight: 400}}>Sign In</Text>
-            </Pressable>
-          </View>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -237,21 +209,16 @@ export default function Signup({navigation}) {
 }
 
 const styles = StyleSheet.create({
-  imageBg: {
-    flex: 1,
-  },
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    height: '100%',
   },
   header: {
-    height: '20%',
+    flex: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   content: {
-    height: '60%',
     marginHorizontal: '10%',
   },
   inputWrapper: {
@@ -270,7 +237,7 @@ const styles = StyleSheet.create({
   },
   inputStyle: {},
   footer: {
-    height: '20%',
+    flex: 2,
     paddingVertical: 20,
     alignItems: 'center',
   },
